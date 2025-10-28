@@ -29,7 +29,8 @@ CODESEG
 ; Debug procedures
 ; -------------------------------------------------------------------
 
-proc printInt
+; from excercises
+PROC printInt
      ARG @@number:dword
      USES eax, ebx, ecx, edx
 
@@ -69,6 +70,7 @@ proc printInt
      ret
 ENDP printInt
 
+; from excercises
 PROC printIntList
 	ARG @@arraypt:dword
 	USES eax, ebx, ecx, edx
@@ -103,6 +105,7 @@ ENDP printIntList
 
 
 ; Set the video mode
+; from excercises
 PROC setVideoMode
 	ARG 	@@VM:byte
 	USES 	eax
@@ -113,7 +116,8 @@ PROC setVideoMode
 	ret
 ENDP setVideoMode
 
-PROC drawRectangle_dword
+; from excercises
+PROC drawRectangle
 	ARG 	@@x0:dword, @@y0:dword, @@w:dword, @@h:dword, @@col: dword
 	USES 	eax, ecx, edx, edi ; note: MUL uses edx!
 
@@ -148,11 +152,12 @@ PROC drawRectangle_dword
 	mov	ecx, edx
 	rep stosb
 	ret
-ENDP drawRectangle_dword
+ENDP drawRectangle
 
 ; Fill the background (for mode 13h) faster
 ; (uses stosd optimization)
 ;	* fillcolor: input color
+; from excercises
 PROC fillBackground
 	ARG 	@@fillcolor:byte
 	USES 	eax, ecx, edi
@@ -178,7 +183,7 @@ ENDP fillBackground
 ; -------------------------------------------------------------------
 ; Other Procedures
 ; -------------------------------------------------------------------
-; wait for @@framecount frames
+; wait for @@framecount frames, from dancer example
 proc wait_VBLANK
 	ARG @@framecount: word
 	USES eax, ecx, edx
@@ -198,6 +203,7 @@ proc wait_VBLANK
 	ret 
 endp wait_VBLANK
 
+; from excercises
 PROC terminateProcess
 	USES eax	
 	call setVideoMode, 03h
@@ -212,8 +218,6 @@ init:
 
     call setVideoMode, 13h
 	
-	call fillBackground, 3
-	
 	call __keyb_installKeyboardHandler
 
 gameloop:
@@ -226,7 +230,10 @@ gameloop:
 
 
     ; draw logic
-	
+	call fillBackground, 3
+
+	call drawRectangle, 20, 20, 20, 20, 4
+
 	
 	; end of loop
     call wait_VBLANK, 1
