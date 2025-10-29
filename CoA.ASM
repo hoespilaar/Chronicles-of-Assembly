@@ -221,6 +221,24 @@ ENDP drawSprite
 
 ; -------------------------------------------------------------------
 ; Other Procedures
+
+PROC movementEnemy
+    ARG @@enemy: dword
+    USES eax, ebx, ecx
+
+    mov ebx, [@@enemy] 
+
+    ; change x position
+    mov ax, [ebx + enemies.x]
+    add ax, [ebx + enemies.speed_x]
+
+    ; change y position
+    mov ax, [ebx + enemies.y]
+    add ax, [ebx + enemies.speed_y]
+    mov [ebx + enemies.y], ax
+
+    ret
+ENDP movementEnemy
 ; -------------------------------------------------------------------
 ; wait for @@framecount frames, from dancer example
 proc wait_VBLANK
@@ -325,6 +343,7 @@ gameloop:
 	call drawSprite, offset sprite, VMEMADR, 20,20   ;Draw sprite at (0,0)
 
 	
+
 	; end of loop
     call wait_VBLANK, 1
 	cmp [gameActive], 0
@@ -335,6 +354,16 @@ gameloop:
 exit:
 	call __keyb_uninstallKeyboardHandler
 	call terminateProcess
+     
+STRUC enemies
+     x  dw 0  
+     y  dw 0  
+     speed_x dw 0  
+     speed_y dw 0  
+     color db 1
+     health db 100
+     sprite dd 0
+ENDS enemies
 
 
 
@@ -342,6 +371,7 @@ exit:
 ; DATA
 ; -------------------------------------------------------------------
 DATASEG
+     enemy1 enemies <1, 2, 3, 4, 5, 6, 7>
 	gameActive db 1
 
 	; from SPRITEDP
@@ -357,3 +387,4 @@ DATASEG
 STACK 100h
 
 END init
+
