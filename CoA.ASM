@@ -215,6 +215,9 @@ ENDP terminateProcess
 init:
 	sti
 	cld
+	
+	push ds
+	pop	es
 
     call setVideoMode, 13h
 	
