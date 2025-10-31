@@ -108,6 +108,26 @@ ENDP printIntList
 ; drawing procedures
 ; -------------------------------------------------------------------
 
+PROC drawEnemy
+	ARG @@enem:dword
+	USES eax, ebx
+
+	; read position and push on stack
+	mov ebx, [@@enem]
+	movzx eax, [ebx + enemies.x]
+	push eax
+	movzx eax, [ebx + enemies.y]
+	push eax
+
+	; Draw enemy sprite
+	lea eax, [sprite + 8]
+	call ReadFile, offset sprite_file, eax, DATASIZE
+	pop ebx	; read location from stack
+	pop eax
+	call drawSprite, offset sprite, VMEMADR, eax, ebx   ;Draw sprite at (0,0)
+
+	ret
+ENDP drawEnemy
 
 
 ; Set the video mode
@@ -221,6 +241,7 @@ ENDP drawSprite
 
 ; -------------------------------------------------------------------
 ; Other Procedures
+; -------------------------------------------------------------------
 
 PROC movementEnemy
     ARG @@enemy: dword
@@ -231,6 +252,7 @@ PROC movementEnemy
     ; change x position
     mov ax, [ebx + enemies.x]
     add ax, [ebx + enemies.speed_x]
+    mov [ebx + enemies.x], ax
 
     ; change y position
     mov ax, [ebx + enemies.y]
@@ -239,7 +261,7 @@ PROC movementEnemy
 
     ret
 ENDP movementEnemy
-; -------------------------------------------------------------------
+
 ; wait for @@framecount frames, from dancer example
 proc wait_VBLANK
 	ARG @@framecount: word
@@ -334,14 +356,12 @@ gameloop:
 	cmp al, 01h					 ; check for escape
 	je exit
 
+	call movementEnemy, offset enemy1
 
     ; draw logic
 	call fillBackground, 3
 
-	lea eax, [sprite + 8]
-	call ReadFile, offset sprite_file, eax, DATASIZE
-	call drawSprite, offset sprite, VMEMADR, 20,20   ;Draw sprite at (0,0)
-
+	call drawEnemy, offset enemy1
 	
 
 	; end of loop
@@ -371,7 +391,8 @@ ENDS enemies
 ; DATA
 ; -------------------------------------------------------------------
 DATASEG
-     enemy1 enemies <1, 2, 3, 4, 5, 6, 7>
+    enemy1 enemies <20, 20, 1, 1, 5, 6, 7>
+
 	gameActive db 1
 
 	; from SPRITEDP
