@@ -356,6 +356,8 @@ gameloop:
 	cmp al, 01h					 ; check for escape
 	je exit
 
+
+	; NPC tick
 	call movementEnemy, offset enemy1
 
     ; draw logic
@@ -380,10 +382,17 @@ STRUC enemies
      y  dw 0  
      speed_x dw 0  
      speed_y dw 0  
-     color db 1
      health db 100
      sprite dd 0
 ENDS enemies
+
+STRUC players
+	x dw 0
+	y dw 0
+    speed_x dw 0
+    speed_y dw 0
+	health db 100
+ENDS players
 
 
 
@@ -391,7 +400,8 @@ ENDS enemies
 ; DATA
 ; -------------------------------------------------------------------
 DATASEG
-    enemy1 enemies <20, 20, 1, 1, 5, 6, 7>
+	player players <SCRWIDTH/2, SCRHEIGHT/2, 1, 1, 100>
+    enemy1 enemies <20, 20, 1, 1, 100, 7>
 
 	gameActive db 1
 
@@ -400,7 +410,7 @@ DATASEG
 	openErrorMsg db "could not open file", 13, 10, '$'
 	readErrorMsg db "could not read data", 13, 10, '$'
 	closeErrorMsg db "error during file closing", 13, 10, '$'
-	sprite DD SPRITEWIDTH, SPRITEHEIGHT; see that first two elements are double words specifying sprite dimensions
+	sprite DD SPRITEWIDTH, SPRITEHEIGHT ; see that first two elements are double words specifying sprite dimensions
 	DB DATASIZE DUP(0)
 ; -------------------------------------------------------------------
 ; STACK
