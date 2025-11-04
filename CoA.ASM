@@ -25,11 +25,22 @@ SPRITEWIDTH EQU 20
 SPRITEHEIGHT EQU 20
 DATASIZE EQU SPRITEWIDTH*SPRITEHEIGHT;bytes of data in file
 
+
+; -------------------------------------------------------------------
+; MACROS
+; -------------------------------------------------------------------
+
+
+
+
+
 ; -------------------------------------------------------------------
 ; CODE
 ; -------------------------------------------------------------------
 CODESEG		
-	
+
+
+
 ; -------------------------------------------------------------------
 ; Debug procedures
 ; -------------------------------------------------------------------
@@ -128,6 +139,27 @@ PROC drawEnemy
 
 	ret
 ENDP drawEnemy
+
+PROC drawPlayer
+	USES eax, ebx, ecx
+
+	; read position and push on stack
+	mov ebx, offset player
+	movzx eax, [ebx + players.x]
+	; push eax
+	movzx ecx, [ebx + players.y]
+	; push eax
+
+	; Draw enemy sprite
+	;lea eax, [sprite + 8]
+	;call ReadFile, offset sprite_file, eax, DATASIZE
+	;pop ebx	; read location from stack
+	;pop eax
+	;call drawSprite, offset sprite, VMEMADR, eax, ebx   ;Draw sprite at (0,0)
+	call drawRectangle, eax, ebx, 20, 20, 6
+
+	ret
+ENDP drawPlayer
 
 
 ; Set the video mode
@@ -334,6 +366,77 @@ PROC ReadFile
 	call terminateProcess	
 ENDP ReadFile
 
+; Player input
+PROC detectInput
+	USES ebx, eax, ecx
+
+	xor eax, eax ; x-directions are in here
+	xor ecx, ecx ; y-directions are in here
+
+@@detectZ:
+    mov bl, [offset __keyb_keyboardState + 11h]
+    test bl, bl
+    jz @@detectD  
+	; direction up
+	add ecx, -1
+
+@@detectD:
+    mov bl, [offset __keyb_keyboardState + 20h]
+    test bl, bl
+	jz @@detectQ
+	; move right
+	add eax, 1
+
+@@detectQ:
+    mov bl, [offset __keyb_keyboardState + 1Eh]
+    test bl, bl
+    jz @@detectS 
+	; move left
+	add eax, -1
+
+@@detectS:
+    mov bl, [offset __keyb_keyboardState + 1Fh]
+    test bl, bl
+    jz @@end
+	; move down
+	add ecx, 1
+
+@@end:
+	
+	call move_player, eax, ecx
+
+	ret
+ENDP detectInput
+
+
+PROC move_player
+	ARG @@dir_x:dword, @@dir_y:dword
+	USES eax, ebx, ecx, edx
+
+    mov ebx, offset player
+
+	; move x
+    mov ax, [ebx + players.speed_x]
+	imul [@@dir_x]
+
+    mov cx, [ebx + players.x]
+	add cx, ax
+    mov [ebx + players.x], cx
+
+	
+	; move y
+@@movey:
+    mov ax, [ebx + players.speed_y]
+	imul [@@dir_y]
+
+    mov cx, [ebx + players.y]
+	add cx, ax
+    mov [ebx + players.y], cx
+
+@@end:
+	ret
+ENDP move_player
+
 init:
 	sti
 	cld
@@ -350,6 +453,7 @@ init:
 
 gameloop:
     ; Player input and movement
+	call detectInput
 
 	; stop game when esc is pressed
 	movzx eax, [__keyb_rawScanCode] ; last pressed key
@@ -365,6 +469,13 @@ gameloop:
 
 	call drawEnemy, offset enemy1
 	
+	; draw player
+	mov ebx, offset player
+	movzx eax, [ebx + players.x]
+	movzx ecx, [ebx + players.y]
+	call drawRectangle, eax, ecx, 20, 20, 6
+	
+
 
 	; end of loop
     call wait_VBLANK, 1
@@ -400,8 +511,8 @@ ENDS players
 ; DATA
 ; -------------------------------------------------------------------
 DATASEG
-	player players <SCRWIDTH/2, SCRHEIGHT/2, 1, 1, 100>
-    enemy1 enemies <20, 20, 1, 1, 100, 7>
+	player players <0, 0, 1, 1, 100>
+    enemy1 enemies <320, 20, -1, 1, 100, 7>
 
 	gameActive db 1
 
@@ -411,7 +522,7 @@ DATASEG
 	readErrorMsg db "could not read data", 13, 10, '$'
 	closeErrorMsg db "error during file closing", 13, 10, '$'
 	sprite DD SPRITEWIDTH, SPRITEHEIGHT ; see that first two elements are double words specifying sprite dimensions
-	DB DATASIZE DUP(0)
+	DB DATASIZE DUP (0)
 ; -------------------------------------------------------------------
 ; STACK
 ; -------------------------------------------------------------------
