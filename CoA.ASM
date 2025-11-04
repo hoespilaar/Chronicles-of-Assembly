@@ -14,17 +14,30 @@ MODEL FLAT, C
 ASSUME cs:_TEXT,ds:FLAT,es:FLAT,fs:FLAT,gs:FLAT
 
 INCLUDE "KEYB.INC"
+INCLUDE "RAND.INC"
 
 ; compile-time constants (with macros)
 VMEMADR EQU 0A0000h	; video memory address
 SCRWIDTH EQU 320	; screen witdth
 SCRHEIGHT EQU 200	; screen height
 
+
+SPRITEWIDTH EQU 20
+SPRITEHEIGHT EQU 20
+DATASIZE EQU SPRITEWIDTH*SPRITEHEIGHT;bytes of data in file
+
+
+; -------------------------------------------------------------------
+; MACROS
+; -------------------------------------------------------------------
+
+
+
+
 ; -------------------------------------------------------------------
 ; CODE
 ; -------------------------------------------------------------------
 CODESEG		
-	
 ; -------------------------------------------------------------------
 ; Debug procedures
 ; -------------------------------------------------------------------
@@ -103,6 +116,48 @@ ENDP printIntList
 ; drawing procedures
 ; -------------------------------------------------------------------
 
+PROC drawEnemy
+	ARG @@enem:dword
+	USES eax, ebx
+
+	; read position and push on stack
+	mov ebx, [@@enem]
+	movzx eax, [ebx + enemies.x]
+	push eax
+	movzx eax, [ebx + enemies.y]
+	push eax
+
+	; Draw enemy sprite
+	lea eax, [sprite + 8]
+	call ReadFile, offset sprite_file, eax, DATASIZE
+	pop ebx	; read location from stack
+	pop eax
+	call drawSprite, offset sprite, VMEMADR, eax, ebx   ;Draw sprite at (0,0)
+
+	ret
+ENDP drawEnemy
+
+PROC drawPlayer
+	USES eax, ebx, ecx
+
+	; read position and push on stack
+	mov ebx, offset player
+	movzx eax, [ebx + players.x]
+	; push eax
+	movzx ecx, [ebx + players.y]
+	; push eax
+
+	; Draw enemy sprite
+	;lea eax, [sprite + 8]
+	;call ReadFile, offset sprite_file, eax, DATASIZE
+	;pop ebx	; read location from stack
+	;pop eax
+	;call drawSprite, offset sprite, VMEMADR, eax, ebx   ;Draw sprite at (0,0)
+	call drawRectangle, eax, ebx, 20, 20, 6
+
+	ret
+ENDP drawPlayer
+
 
 ; Set the video mode
 ; from excercises
@@ -179,28 +234,88 @@ PROC fillBackground
 	ret
 ENDP fillBackground
 
+; from SPRITEDP
+PROC drawSprite
+	ARG @@spritePtr :dword, \
+	@@dstPtr :dword, \
+	@@x:dword, \
+	@@y:dword
+	LOCAL @@w:dword, @@h:dword
+	USES eax , ebx , ecx , edx , esi , edi
+
+	mov esi , [ @@spritePtr ]
+	xor eax , eax
+	lodsd ; read width in EAX, first two values are width and height
+	mov [@@w] , eax
+	lodsd ; read height in EAX
+	mov [@@h] , eax
+	mov edi , [ @@dstPtr ]
+	mov eax , [@@y]
+	mov ebx , SCRWIDTH
+	mul ebx
+	add edi , eax
+	add edi , [@@x] ; EDI points to first pixel
+	mov ecx , [@@h]
+	@@drawLine :
+	push ecx
+	mov ecx , [@@w] ; need to copy a line of the sprite
+	rep movsb ; copy from esi to edi
+	add edi , SCRWIDTH
+	sub edi , [@@w] ; edi now points to the next line in dst
+	pop ecx
+	dec ecx
+	jnz @@drawLine
+	ret
+ENDP drawSprite
 
 ; -------------------------------------------------------------------
 ; Other Procedures
+; -------------------------------------------------------------------
 
 PROC movementEnemy
     ARG @@enemy: dword
     USES eax, ebx, ecx
 
-    mov ebx, [@@enemy] 
+    mov ebx, [@@enemy]
+	
+	; makes it move in vertical lines, not randomized movement
+	mov ax, [ebx + enemies.x]
+	add ax, [ebx + enemies.speed_x]
+	mov [ebx + enemies.x], ax
+	
+	mov ax, [ebx + enemies.y]
+	add ax, [ebx + enemies.speed_y]
+	mov [ebx + enemies.y], ax
 
-    ; change x position
-    mov ax, [ebx + enemies.x]
-    add ax, [ebx + enemies.speed_x]
 
-    ; change y position
-    mov ax, [ebx + enemies.y]
-    add ax, [ebx + enemies.speed_y]
-    mov [ebx + enemies.y], ax
+	;apply a limit to x and y to the enemy position so it stays on screen
+	cmp [ebx + enemies.y], SCRHEIGHT-SPRITEHEIGHT
+	jl @@CheckBottomLimit
+	neg [ebx + enemies.speed_y]   ;switch speed direction by applying the two's complement negation
+	jmp @@done
 
-    ret
+@@CheckBottomLimit:
+	cmp [ebx + enemies.x], SCRWIDTH - SPRITEWIDTH
+	jl @@CheckTopLimit
+	neg [ebx + enemies.speed_x]
+	jmp @@done
+
+@@CheckTopLimit:
+	cmp [ebx + enemies.y], 0
+	jg @@CheckLeftLimit
+	neg [ebx + enemies.speed_y]
+	jmp @@done
+
+@@CheckLeftLimit:
+	cmp [ebx + enemies.x], 0
+	jg @@done
+	neg [ebx + enemies.speed_x]
+
+@@done:
+	ret
+
 ENDP movementEnemy
-; -------------------------------------------------------------------
+
 ; wait for @@framecount frames, from dancer example
 proc wait_VBLANK
 	ARG @@framecount: word
@@ -230,19 +345,138 @@ PROC terminateProcess
 	ret
 ENDP terminateProcess
 
+; from SPRITEDP
+PROC ReadFile
+	ARG	 @@filepathptr: dword,@@dataptr: dword,@@noofbytes: dword 
+	USES eax, ebx, ecx, edx, esi, edi
+	
+	; open file, get filehandle in AX
+	mov al, 0 ; read only
+	mov edx, [@@filepathptr]
+	mov ah, 3dh
+	int 21h
+	
+	mov  edx, offset openErrorMsg
+	jc @@print_error ; carry flag is set if error occurs
+
+	; read file data 
+	mov bx, ax ; move filehandle to bx
+	mov ecx, [@@noofbytes]
+	mov edx, [@@dataptr]
+	mov ah, 3fh
+	int 21h
+
+	mov  edx, offset readErrorMsg
+	jc @@print_error
+	
+	; close file
+	mov ah, 3Eh
+	int 21h
+	
+	mov  edx, offset closeErrorMsg
+	jc @@print_error
+	
+	ret
+
+	@@print_error:
+	call setVideoMode, 03h
+	mov  ah, 09h
+	int  21h
+	
+	mov	ah,00h
+	int	16h
+	call terminateProcess	
+ENDP ReadFile
+
+; Player input
+PROC detectInput
+	USES ebx, eax, ecx
+
+	xor eax, eax ; x-directions are in here
+	xor ecx, ecx ; y-directions are in here
+
+	@@detectZ:
+    mov bl, [offset __keyb_keyboardState + 11h]
+    test bl, bl
+    jz @@detectD  
+	; direction up
+	add ecx, -1
+
+	@@detectD:
+    mov bl, [offset __keyb_keyboardState + 20h]
+    test bl, bl
+	jz @@detectQ
+	; move right
+	add eax, 1
+
+	@@detectQ:
+    mov bl, [offset __keyb_keyboardState + 1Eh]
+    test bl, bl
+    jz @@detectS 
+	; move left
+	add eax, -1
+
+	@@detectS:
+    mov bl, [offset __keyb_keyboardState + 1Fh]
+    test bl, bl
+    jz @@end
+	; move down
+	add ecx, 1
+
+	@@end:
+	
+	call move_player, eax, ecx
+
+	ret
+ENDP detectInput
+
+
+PROC move_player
+	ARG @@dir_x:dword, @@dir_y:dword
+	USES eax, ebx, ecx, edx
+
+    mov ebx, offset player
+
+	; calculation x position
+    mov ax, [ebx + players.speed_x]
+	imul [@@dir_x]
+
+	; movement x
+    mov cx, [ebx + players.x]
+	add cx, ax
+    mov [ebx + players.x], cx
+
+	
+	;@@movey:
+	; calculation  position
+    mov ax, [ebx + players.speed_y]
+	imul [@@dir_y]
+	; movement y
+    mov cx, [ebx + players.y]
+	add cx, ax
+    mov [ebx + players.y], cx
+
+	;@@end:
+	ret
+ENDP move_player
+
 init:
 	sti
 	cld
 	
+	; blijkbaar super nodig voor iets
 	push ds
 	pop	es
 
+	; Set the video mode
     call setVideoMode, 13h
 	
+	; Start the keyboard handler
 	call __keyb_installKeyboardHandler
 
 gameloop:
     ; Player input and movement
+	call detectInput
 
 	; stop game when esc is pressed
 	movzx eax, [__keyb_rawScanCode] ; last pressed key
@@ -250,12 +484,21 @@ gameloop:
 	je exit
 
 
+	; NPC tick
+	call movementEnemy, offset enemy1
+
     ; draw logic
 	call fillBackground, 3
 
-	call drawRectangle, 20, 20, 20, 20, 4
-
+	call drawEnemy, offset enemy1
 	
+	; draw player
+	mov ebx, offset player
+	movzx eax, [ebx + players.x]
+	movzx ecx, [ebx + players.y]
+	call drawRectangle, eax, ecx, 20, 20, 6
+	
+
 
 	; end of loop
     call wait_VBLANK, 1
@@ -273,21 +516,39 @@ STRUC enemies
      y  dw 0  
      speed_x dw 0  
      speed_y dw 0  
-     color db 1
      health db 100
      sprite dd 0
 ENDS enemies
+
+STRUC players
+	x dw 0
+	y dw 0
+    speed_x dw 0
+    speed_y dw 0
+	health db 100
+ENDS players
+
+
 
 ; -------------------------------------------------------------------
 ; DATA
 ; -------------------------------------------------------------------
 DATASEG
-     enemy1 enemies <1, 2, 3, 4, 5, 6, 7>
+	player players <0, 0, 1, 1, 100>
+    enemy1 enemies <0, 100, 1, 1, 100, 7>
+
 	gameActive db 1
+
+	; from SPRITEDP
+	sprite_file db "Images/Ghost.bin", 0
+	openErrorMsg db "could not open file", 13, 10, '$'
+	readErrorMsg db "could not read data", 13, 10, '$'
+	closeErrorMsg db "error during file closing", 13, 10, '$'
+	sprite DD SPRITEWIDTH, SPRITEHEIGHT ; see that first two elements are double words specifying sprite dimensions
+	DB DATASIZE DUP (0)
 ; -------------------------------------------------------------------
 ; STACK
 ; -------------------------------------------------------------------
 STACK 100h
 
 END init
-
