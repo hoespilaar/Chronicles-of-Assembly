@@ -274,7 +274,6 @@ ENDP drawSprite
 ; -------------------------------------------------------------------
 ; Other Procedures
 ; -------------------------------------------------------------------
-; -------------------------------------------------------------------
 
 PROC movementEnemy
     ARG @@enemy: dword
@@ -294,61 +293,61 @@ PROC movementEnemy
 
 
 	;randomized movement
-	;random number between -3 and 4 for x movement
+	;random number for x movement
 	call rand16     ;random 16-bit number in AX
-	and ax, 0007h   ;keep only 3 bits (0-7)  => "and" operation
-	sub ax, 3       ;now also movement in the negative direction
+	and ax,	7h  	 ; 0..7 => "and" operation
+	sub ax, 3 	    ;-3..+4 => movement in negative direction
 	mov [@@randnumx], ax
 	
-	;random number between -3 and 4 for y movement
+	;random number for y movement
 	call rand16     ;random 16-bit number in AX
-	and ax, 0007h   ;keep only 3 bits (0-7)
-	sub ax, 3      	;now also movement in the negative direction
+	and ax, 7h
+	sub ax, 3   	;now also movement in the negative direction
 	mov [@@randnumy], ax
 	
     ; change x position
     mov ax, [ebx + enemies.x]
-	add ax, [ebx + enemies.speed_x]
     add ax, [@@randnumx]
     mov [ebx + enemies.x], ax
 
     ; change y position
     mov ax, [ebx + enemies.y]
-	add ax, [ebx + enemies.speed_y]
     add ax, [@@randnumy]	
     mov [ebx + enemies.y], ax
 	
 	
-
-
 	;apply a limit to x and y to the enemy position so it stays on screen
 	cmp [ebx + enemies.y], SCRHEIGHT-SPRITEHEIGHT
-	jl @@CheckBottomLimit
-	neg [ebx + enemies.speed_y]  ;switch speed direction by applying the two's complement negation
+	jle @@CheckBottomLimit
+	mov [ebx + enemies.y], SCRHEIGHT-SPRITEHEIGHT
+	;neg [ebx + enemies.speed_y]  ;switch speed direction by applying the two's complement negation
 	jmp @@done
 
 @@CheckBottomLimit:
 	cmp [ebx + enemies.x], SCRWIDTH - SPRITEWIDTH
-	jl @@CheckTopLimit
-	neg [ebx + enemies.speed_x]
+	jle @@CheckTopLimit
+	mov [ebx + enemies.x], SCRWIDTH - SPRITEWIDTH
+	;neg [ebx + enemies.speed_x]
 	jmp @@done
 
 @@CheckTopLimit:
 	cmp [ebx + enemies.y], 0
-	jg @@CheckLeftLimit
-	neg [ebx + enemies.speed_y]
+	jge @@CheckLeftLimit
+	mov [ebx + enemies.y], 0
+	;neg [ebx + enemies.speed_y]
 	jmp @@done
 
 @@CheckLeftLimit:
 	cmp [ebx + enemies.x], 0
-	jg @@done
-	neg [ebx + enemies.speed_x]
+	jge @@done
+	mov [ebx + enemies.x], 0
+	;neg [ebx + enemies.speed_x]
 
 @@done:
 	ret
 
 ENDP movementEnemy
-
+; -------------------------------------------------------------------
 
 ; wait for @@framecount frames, from dancer example
 proc wait_VBLANK
@@ -474,14 +473,12 @@ PROC move_player
 	; calculation x position
     mov ax, [ebx + players.speed_x]
 	imul [@@dir_x]
-
 	; movement x
     mov cx, [ebx + players.x]
 	add cx, ax
     mov [ebx + players.x], cx
 
-	
-	;@@movey:
+
 	; calculation  position
     mov ax, [ebx + players.speed_y]
 	imul [@@dir_y]
@@ -489,8 +486,7 @@ PROC move_player
     mov cx, [ebx + players.y]
 	add cx, ax
     mov [ebx + players.y], cx
-
-	;@@end:
+	
 	ret
 ENDP move_player
 
@@ -592,7 +588,7 @@ ENDS players
 ; -------------------------------------------------------------------
 DATASEG
 	player players <0, 0, 1, 1, 100>
-    enemy1 enemies <160, 100, 1, 1, 100, 7>
+    enemy1 enemies <0, 100, 1, 1, 100, 7>
 
 	gameActive db 1
 
