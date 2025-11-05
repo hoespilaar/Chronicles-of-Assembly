@@ -160,48 +160,6 @@ PROC drawPlayer
 	ret
 ENDP drawPlayer
 
-PROC drawEnemy
-	ARG @@enem:dword
-	USES eax, ebx
-
-	; read position and push on stack
-	mov ebx, [@@enem]
-	movzx eax, [ebx + enemies.x]
-	push eax
-	movzx eax, [ebx + enemies.y]
-	push eax
-
-	; Draw enemy sprite
-	lea eax, [sprite + 8]
-	call ReadFile, offset sprite_file, eax, DATASIZE
-	pop ebx	; read location from stack
-	pop eax
-	call drawSprite, offset sprite, VMEMADR, eax, ebx   ;Draw sprite at (0,0)
-
-	ret
-ENDP drawEnemy
-
-PROC drawPlayer
-	USES eax, ebx, ecx
-
-	; read position and push on stack
-	mov ebx, offset player
-	movzx eax, [ebx + players.x]
-	; push eax
-	movzx ecx, [ebx + players.y]
-	; push eax
-
-	; Draw enemy sprite
-	;lea eax, [sprite + 8]
-	;call ReadFile, offset sprite_file, eax, DATASIZE
-	;pop ebx	; read location from stack
-	;pop eax
-	;call drawSprite, offset sprite, VMEMADR, eax, ebx   ;Draw sprite at (0,0)
-	call drawRectangle, eax, ebx, 20, 20, 6
-
-	ret
-ENDP drawPlayer
-
 
 ; Set the video mode
 ; from excercises
@@ -311,39 +269,7 @@ PROC drawSprite
 	jnz @@drawLine
 	ret
 ENDP drawSprite
-; from SPRITEDP
-PROC drawSprite
-	ARG @@spritePtr :dword, \
-	@@dstPtr :dword, \
-	@@x:dword, \
-	@@y:dword
-	LOCAL @@w:dword, @@h:dword
-	USES eax , ebx , ecx , edx , esi , edi
 
-	mov esi , [ @@spritePtr ]
-	xor eax , eax
-	lodsd ; read width in EAX, first two values are width and height
-	mov [@@w] , eax
-	lodsd ; read height in EAX
-	mov [@@h] , eax
-	mov edi , [ @@dstPtr ]
-	mov eax , [@@y]
-	mov ebx , SCRWIDTH
-	mul ebx
-	add edi , eax
-	add edi , [@@x] ; EDI points to first pixel
-	mov ecx , [@@h]
-	@@drawLine :
-	push ecx
-	mov ecx , [@@w] ; need to copy a line of the sprite
-	rep movsb ; copy from esi to edi
-	add edi , SCRWIDTH
-	sub edi , [@@w] ; edi now points to the next line in dst
-	pop ecx
-	dec ecx
-	jnz @@drawLine
-	ret
-ENDP drawSprite
 
 ; -------------------------------------------------------------------
 ; Other Procedures
