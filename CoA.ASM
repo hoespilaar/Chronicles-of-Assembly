@@ -304,15 +304,18 @@ PROC movementEnemy
 	and ax, 7h
 	sub ax, 3   	;now also movement in the negative direction
 	mov [@@randnumy], ax
+
 	
     ; change x position
     mov ax, [ebx + enemies.x]
     add ax, [@@randnumx]
+	add ax, [ebx + enemies.speed_x]
     mov [ebx + enemies.x], ax
 
     ; change y position
     mov ax, [ebx + enemies.y]
     add ax, [@@randnumy]	
+	add ax, [ebx + enemies.speed_x]
     mov [ebx + enemies.y], ax
 	
 	
@@ -320,28 +323,28 @@ PROC movementEnemy
 	cmp [ebx + enemies.y], SCRHEIGHT-SPRITEHEIGHT
 	jle @@CheckBottomLimit
 	mov [ebx + enemies.y], SCRHEIGHT-SPRITEHEIGHT
-	;neg [ebx + enemies.speed_y]  ;switch speed direction by applying the two's complement negation
+	neg [ebx + enemies.speed_y]  ;switch speed direction by applying the two's complement negation
 	jmp @@done
 
 @@CheckBottomLimit:
 	cmp [ebx + enemies.x], SCRWIDTH - SPRITEWIDTH
 	jle @@CheckTopLimit
 	mov [ebx + enemies.x], SCRWIDTH - SPRITEWIDTH
-	;neg [ebx + enemies.speed_x]
+	neg [ebx + enemies.speed_x]
 	jmp @@done
 
 @@CheckTopLimit:
 	cmp [ebx + enemies.y], 0
 	jge @@CheckLeftLimit
 	mov [ebx + enemies.y], 0
-	;neg [ebx + enemies.speed_y]
+	neg [ebx + enemies.speed_y]
 	jmp @@done
 
 @@CheckLeftLimit:
 	cmp [ebx + enemies.x], 0
 	jge @@done
 	mov [ebx + enemies.x], 0
-	;neg [ebx + enemies.speed_x]
+	neg [ebx + enemies.speed_x]
 
 @@done:
 	ret
