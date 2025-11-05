@@ -275,23 +275,52 @@ ENDP drawSprite
 PROC movementEnemy
     ARG @@enemy: dword
     USES eax, ebx, ecx
+	LOCAL @@randnumx: word, @@randnumy: word
 
     mov ebx, [@@enemy]
 	
 	; makes it move in vertical lines, not randomized movement
-	mov ax, [ebx + enemies.x]
-	add ax, [ebx + enemies.speed_x]
-	mov [ebx + enemies.x], ax
+	;mov ax, [ebx + enemies.x]
+	;add ax, [ebx + enemies.speed_x]
+	;mov [ebx + enemies.x], ax
 	
-	mov ax, [ebx + enemies.y]
+	;mov ax, [ebx + enemies.y]
+	;add ax, [ebx + enemies.speed_y]
+	;mov [ebx + enemies.y], ax
+
+
+	;randomized movement
+	;random number between -3 and 4 for x movement
+	call rand16     ;random 16-bit number in AX
+	and ax, 0007h   ;keep only 3 bits (0-7)  => "and" operation
+	sub ax, 3       ;now also movement in the negative direction
+	mov [@@randnumx], ax
+	
+	;random number between -3 and 4 for y movement
+	call rand16     ;random 16-bit number in AX
+	and ax, 0007h   ;keep only 3 bits (0-7)
+	sub ax, 3      	;now also movement in the negative direction
+	mov [@@randnumy], ax
+	
+    ; change x position
+    mov ax, [ebx + enemies.x]
+	add ax, [ebx + enemies.speed_x]
+    add ax, [@@randnumx]
+    mov [ebx + enemies.x], ax
+
+    ; change y position
+    mov ax, [ebx + enemies.y]
 	add ax, [ebx + enemies.speed_y]
-	mov [ebx + enemies.y], ax
+    add ax, [@@randnumy]	
+    mov [ebx + enemies.y], ax
+	
+	
 
 
 	;apply a limit to x and y to the enemy position so it stays on screen
 	cmp [ebx + enemies.y], SCRHEIGHT-SPRITEHEIGHT
 	jl @@CheckBottomLimit
-	neg [ebx + enemies.speed_y]   ;switch speed direction by applying the two's complement negation
+	neg [ebx + enemies.speed_y]  ;switch speed direction by applying the two's complement negation
 	jmp @@done
 
 @@CheckBottomLimit:
@@ -535,7 +564,7 @@ ENDS players
 ; -------------------------------------------------------------------
 DATASEG
 	player players <0, 0, 1, 1, 100>
-    enemy1 enemies <0, 100, 1, 1, 100, 7>
+    enemy1 enemies <160, 100, 1, 1, 100, 7>
 
 	gameActive db 1
 
