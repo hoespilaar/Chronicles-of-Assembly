@@ -18,12 +18,14 @@ INCLUDE "RAND.INC"
 
 ; compile-time constants (with macros)
 VMEMADR EQU 0A0000h	; video memory address
-SCRWIDTH EQU 320	; screen witdth
-SCRHEIGHT EQU 200	; screen height
+SCRWIDTH EQU 320	; physical screen witdth
+SCRHEIGHT EQU 200	; physical screen height
+VIRSCRWIDTH EQU 320*4 ; virtual screen width
+VIRSCRHEIGHT EQU 200*4 ; virtual screen height
 
 
-SPRITEWIDTH EQU 20
-SPRITEHEIGHT EQU 20
+SPRITEWIDTH EQU 20*4	; virtual sprite size
+SPRITEHEIGHT EQU 20*4		; virtual sprite size
 DATASIZE EQU SPRITEWIDTH*SPRITEHEIGHT;bytes of data in file
 
 
@@ -125,8 +127,10 @@ PROC drawEnemy
 	; read position and push on stack
 	mov ebx, [@@enem]
 	movzx eax, [ebx + enemies.x]
+	shr eax, 2
 	push eax
 	movzx eax, [ebx + enemies.y]
+	shr eax, 2
 	push eax
 
 	; Draw enemy sprite
@@ -138,27 +142,6 @@ PROC drawEnemy
 
 	ret
 ENDP drawEnemy
-
-PROC drawPlayer
-	USES eax, ebx, ecx
-
-	; read position and push on stack
-	mov ebx, offset player
-	movzx eax, [ebx + players.x]
-	; push eax
-	movzx ecx, [ebx + players.y]
-	; push eax
-
-	; Draw enemy sprite
-	;lea eax, [sprite + 8]
-	;call ReadFile, offset sprite_file, eax, DATASIZE
-	;pop ebx	; read location from stack
-	;pop eax
-	;call drawSprite, offset sprite, VMEMADR, eax, ebx   ;Draw sprite at (0,0)
-	call drawRectangle, eax, ebx, 20, 20, 6
-
-	ret
-ENDP drawPlayer
 
 
 ; Set the video mode
@@ -320,33 +303,33 @@ PROC movementEnemy
 	
 	
 	;apply a limit to x and y to the enemy position so it stays on screen
-	cmp [ebx + enemies.y], SCRHEIGHT-SPRITEHEIGHT
+	cmp [ebx + enemies.y], VIRSCRHEIGHT-SPRITEHEIGHT
 	jle @@CheckBottomLimit
-	mov [ebx + enemies.y], SCRHEIGHT-SPRITEHEIGHT
+	mov [ebx + enemies.y], VIRSCRHEIGHT-SPRITEHEIGHT
 	neg [ebx + enemies.speed_y]  ;switch speed direction by applying the two's complement negation
 	jmp @@done
 
-@@CheckBottomLimit:
-	cmp [ebx + enemies.x], SCRWIDTH - SPRITEWIDTH
+	@@CheckBottomLimit:
+	cmp [ebx + enemies.x], VIRSCRWIDTH - SPRITEWIDTH
 	jle @@CheckTopLimit
-	mov [ebx + enemies.x], SCRWIDTH - SPRITEWIDTH
+	mov [ebx + enemies.x], VIRSCRWIDTH - SPRITEWIDTH
 	neg [ebx + enemies.speed_x]
 	jmp @@done
 
-@@CheckTopLimit:
+	@@CheckTopLimit:
 	cmp [ebx + enemies.y], 0
 	jge @@CheckLeftLimit
 	mov [ebx + enemies.y], 0
 	neg [ebx + enemies.speed_y]
 	jmp @@done
 
-@@CheckLeftLimit:
+	@@CheckLeftLimit:
 	cmp [ebx + enemies.x], 0
 	jge @@done
 	mov [ebx + enemies.x], 0
 	neg [ebx + enemies.speed_x]
 
-@@done:
+	@@done:
 	ret
 
 ENDP movementEnemy
@@ -527,21 +510,15 @@ gameloop:
     ; draw logic
 	call fillBackground, 3
 
+	; draw enemies
 	call drawEnemy, offset enemy1
 	
 	; draw player
 	mov ebx, offset player
 	movzx eax, [ebx + players.x]
+	shr eax, 2
 	movzx ecx, [ebx + players.y]
-	call drawRectangle, eax, ecx, 20, 20, 6
-	
-
-	call drawEnemy, offset enemy1
-	
-	; draw player
-	mov ebx, offset player
-	movzx eax, [ebx + players.x]
-	movzx ecx, [ebx + players.y]
+	shr ecx, 2
 	call drawRectangle, eax, ecx, 20, 20, 6
 	
 
@@ -600,7 +577,7 @@ DATASEG
 	openErrorMsg db "could not open file", 13, 10, '$'
 	readErrorMsg db "could not read data", 13, 10, '$'
 	closeErrorMsg db "error during file closing", 13, 10, '$'
-	sprite DD SPRITEWIDTH, SPRITEHEIGHT ; see that first two elements are double words specifying sprite dimensions
+	sprite DD SPRITEWIDTH/4, SPRITEHEIGHT/4 ; see that first two elements are double words specifying sprite dimensions
 	DB DATASIZE DUP (0)
 ; -------------------------------------------------------------------
 ; STACK
