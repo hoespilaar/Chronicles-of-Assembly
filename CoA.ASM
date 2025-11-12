@@ -278,14 +278,15 @@ PROC movementEnemy
 	;randomized movement
 	;random number for x movement
 	call rand16     ;random 16-bit number in AX
-	and ax,	7h  	 ; 0..7 => "and" operation
-	sub ax, 3 	    ;-3..+4 => movement in negative direction
+	sub ax, 7fffh 	    ; - (2^16) / 2
+	sar ax, 13			; / 2^13
 	mov [@@randnumx], ax
 	
 	;random number for y movement
 	call rand16     ;random 16-bit number in AX
-	and ax, 7h
-	sub ax, 3   	;now also movement in the negative direction
+	;and ax, 0fh
+	sub eax, 7fffh   	;now also movement in the negative direction
+	sar eax, 13
 	mov [@@randnumy], ax
 
 	
