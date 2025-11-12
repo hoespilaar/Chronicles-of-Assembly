@@ -473,7 +473,31 @@ PROC move_player
     mov cx, [ebx + players.y]
 	add cx, ax
     mov [ebx + players.y], cx
+
+
+	;apply a limit to x and y to the enemy position so it stays on screen
+	cmp [ebx + players.y], VIRSCRHEIGHT-SPRITEHEIGHT
+	jle @@CheckBottomLimit
+	mov [ebx + players.y], VIRSCRHEIGHT-SPRITEHEIGHT
+	jmp @@CheckLeftLimit
 	
+	@@CheckBottomLimit:
+	cmp [ebx + players.y], 0
+	jge @@CheckLeftLimit
+	mov [ebx + players.y], 0
+
+	@@CheckLeftLimit:
+	cmp [ebx + players.x], VIRSCRWIDTH - SPRITEWIDTH
+	jle @@CheckRightLimit
+	mov [ebx + players.x], VIRSCRWIDTH - SPRITEWIDTH
+	jmp @@done
+
+	@@CheckRightLimit:
+	cmp [ebx + players.x], 0
+	jge @@done
+	mov [ebx + players.x], 0
+
+@@done:
 	ret
 ENDP move_player
 
