@@ -1,7 +1,7 @@
 clear
-x = imread('Ghost.jpg'); %Read 24 bit colour image 
-spritewidth = 20;
-spriteheight = 20;
+x = imread('Background.jpg'); %Read 24 bit colour image 
+spritewidth = 320;
+spriteheight = 200;
 x = imresize(x,[spriteheight spritewidth]);%Scale image to required size
 %%
 % Read 2D palette image stored in raster scan 
