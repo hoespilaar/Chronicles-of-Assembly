@@ -400,9 +400,14 @@ PROC ReadFile
 
 	@@print_error:
 	call setVideoMode, 03h
+	push ax
 	mov  ah, 09h
 	int  21h
 	
+	pop ax
+	movzx ebx, al
+	call printInt, ebx
+
 	mov	ah,00h
 	int	16h
 	call terminateProcess	
@@ -515,9 +520,12 @@ init:
 	; Start the keyboard handler
 	call __keyb_installKeyboardHandler
 
+	; Read the background file
+	lea eax, [background + 8]
+	call ReadFile, offset background_file, eax, SCRHEIGHT*SCRWIDTH
+
 gameloop:
     ; Player input and movement
-	call detectInput
 	call detectInput
 
 	; stop game when esc is pressed
@@ -529,11 +537,8 @@ gameloop:
 	; NPC tick
 	call movementEnemy, offset enemy1
 
-	; NPC tick
-	call movementEnemy, offset enemy1
-
     ; draw logic
-	call fillBackground, 3
+	call drawSprite, offset background, VMEMADR, 0, 0 
 
 	; draw enemies
 	call drawEnemy, offset enemy1
@@ -578,16 +583,6 @@ ENDS players
 
 
 
-STRUC players
-	x dw 0
-	y dw 0
-    speed_x dw 0
-    speed_y dw 0
-	health db 100
-ENDS players
-
-
-
 ; -------------------------------------------------------------------
 ; DATA
 ; -------------------------------------------------------------------
@@ -604,6 +599,10 @@ DATASEG
 	closeErrorMsg db "error during file closing", 13, 10, '$'
 	sprite DD SPRITEWIDTH/4, SPRITEHEIGHT/4 ; see that first two elements are double words specifying sprite dimensions
 	DB DATASIZE DUP (0)
+
+	background_file db "Images\Backg.bin", 0
+	background DD SCRWIDTH, SCRHEIGHT
+	DB SCRWIDTH*SCRHEIGHT DUP (0)
 ; -------------------------------------------------------------------
 ; STACK
 ; -------------------------------------------------------------------
