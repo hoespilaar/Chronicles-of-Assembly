@@ -370,12 +370,47 @@ PROC movementEnemy
     ; change y position
     mov ax, [ebx + enemies.y]
     add ax, [@@randnumy]	
+<<<<<<< HEAD
 	add ax, [ebx + enemies.speed_y]
+=======
+	add ax, [ebx + enemies.speed_x]
+>>>>>>> f4e9b353938786e3ec55a8a64e1de8eac6a5ec64
     mov [ebx + enemies.y], ax
 	
 	
 	;apply a limit to x and y to the enemy position so it stays on screen
+<<<<<<< HEAD
     call collisionBorders, [ebx + enemies.x], [ebx + enemies.y], SPRITEWIDTH, SPRITEHEIGHT, [ebx + enemies.speed_x], [ebx + enemies.speed_y]
+=======
+	cmp [ebx + enemies.y], VIRSCRHEIGHT-SPRITEHEIGHT
+	jle @@CheckBottomLimit
+	mov [ebx + enemies.y], VIRSCRHEIGHT-SPRITEHEIGHT
+	neg [ebx + enemies.speed_y]  ;switch speed direction by applying the two's complement negation
+	jmp @@done
+
+	@@CheckBottomLimit:
+	cmp [ebx + enemies.x], VIRSCRWIDTH - SPRITEWIDTH
+	jle @@CheckTopLimit
+	mov [ebx + enemies.x], VIRSCRWIDTH - SPRITEWIDTH
+	neg [ebx + enemies.speed_x]
+	jmp @@done
+
+	@@CheckTopLimit:
+	cmp [ebx + enemies.y], 0
+	jge @@CheckLeftLimit
+	mov [ebx + enemies.y], 0
+	neg [ebx + enemies.speed_y]
+	jmp @@done
+
+	@@CheckLeftLimit:
+	cmp [ebx + enemies.x], 0
+	jge @@done
+	mov [ebx + enemies.x], 0
+	neg [ebx + enemies.speed_x]
+
+	@@done:
+	ret
+>>>>>>> f4e9b353938786e3ec55a8a64e1de8eac6a5ec64
 
 ENDP movementEnemy
 ; -------------------------------------------------------------------
@@ -444,9 +479,14 @@ PROC ReadFile
 
 	@@print_error:
 	call setVideoMode, 03h
+	push ax
 	mov  ah, 09h
 	int  21h
 	
+	pop ax
+	movzx ebx, al
+	call printInt, ebx
+
 	mov	ah,00h
 	int	16h
 	call terminateProcess	
@@ -518,9 +558,37 @@ PROC move_player
 	add cx, ax
     mov [ebx + players.y], cx
 
+<<<<<<< HEAD
 	;apply a limit to x and y to the enemy position so it stays on screen
   	call collisionBorders, [ebx + players.x], [ebx + players.y], SPRITEWIDTH, SPRITEHEIGHT, [ebx + players.speed_x], [ebx + players.speed_y]
 
+=======
+
+	;apply a limit to x and y to the enemy position so it stays on screen
+	cmp [ebx + players.y], VIRSCRHEIGHT-SPRITEHEIGHT
+	jle @@CheckBottomLimit
+	mov [ebx + players.y], VIRSCRHEIGHT-SPRITEHEIGHT
+	jmp @@CheckLeftLimit
+	
+	@@CheckBottomLimit:
+	cmp [ebx + players.y], 0
+	jge @@CheckLeftLimit
+	mov [ebx + players.y], 0
+
+	@@CheckLeftLimit:
+	cmp [ebx + players.x], VIRSCRWIDTH - SPRITEWIDTH
+	jle @@CheckRightLimit
+	mov [ebx + players.x], VIRSCRWIDTH - SPRITEWIDTH
+	jmp @@done
+
+	@@CheckRightLimit:
+	cmp [ebx + players.x], 0
+	jge @@done
+	mov [ebx + players.x], 0
+
+@@done:
+	ret
+>>>>>>> f4e9b353938786e3ec55a8a64e1de8eac6a5ec64
 ENDP move_player
 
 init:
@@ -537,6 +605,10 @@ init:
 	; Start the keyboard handler
 	call __keyb_installKeyboardHandler
 
+	; Read the background file
+	lea eax, [background + 8]
+	call ReadFile, offset background_file, eax, SCRHEIGHT*SCRWIDTH
+
 gameloop:
     ; Player input and movement
 	call detectInput
@@ -551,7 +623,11 @@ gameloop:
 	call movementEnemy, offset enemy1
 
     ; draw logic
+<<<<<<< HEAD
 	call fillBackground, 3
+=======
+	call drawSprite, offset background, VMEMADR, 0, 0 
+>>>>>>> f4e9b353938786e3ec55a8a64e1de8eac6a5ec64
 
 	; draw enemies
 	call drawEnemy, offset enemy1
@@ -595,6 +671,10 @@ STRUC players
 ENDS players
 
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> f4e9b353938786e3ec55a8a64e1de8eac6a5ec64
 ; -------------------------------------------------------------------
 ; DATA
 ; -------------------------------------------------------------------
@@ -611,6 +691,10 @@ DATASEG
 	closeErrorMsg db "error during file closing", 13, 10, '$'
 	sprite DD SPRITEWIDTH/4, SPRITEHEIGHT/4 ; see that first two elements are double words specifying sprite dimensions
 	DB DATASIZE DUP (0)
+
+	background_file db "Images\Backg.bin", 0
+	background DD SCRWIDTH, SCRHEIGHT
+	DB SCRWIDTH*SCRHEIGHT DUP (0)
 ; -------------------------------------------------------------------
 ; STACK
 ; -------------------------------------------------------------------
