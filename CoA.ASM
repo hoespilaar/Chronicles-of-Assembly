@@ -18,12 +18,14 @@ INCLUDE "RAND.INC"
 
 ; compile-time constants (with macros)
 VMEMADR EQU 0A0000h	; video memory address
-SCRWIDTH EQU 320	; screen witdth
-SCRHEIGHT EQU 200	; screen height
+SCRWIDTH EQU 320	; physical screen witdth
+SCRHEIGHT EQU 200	; physical screen height
+VIRSCRWIDTH EQU 320*4 ; virtual screen width
+VIRSCRHEIGHT EQU 200*4 ; virtual screen height
 
 
-SPRITEWIDTH EQU 20
-SPRITEHEIGHT EQU 20
+SPRITEWIDTH EQU 20*4	; virtual sprite size
+SPRITEHEIGHT EQU 20*4		; virtual sprite size
 DATASIZE EQU SPRITEWIDTH*SPRITEHEIGHT;bytes of data in file
 
 
@@ -125,8 +127,10 @@ PROC drawEnemy
 	; read position and push on stack
 	mov ebx, [@@enem]
 	movzx eax, [ebx + enemies.x]
+	shr eax, 2
 	push eax
 	movzx eax, [ebx + enemies.y]
+	shr eax, 2
 	push eax
 
 	; Draw enemy sprite
@@ -138,27 +142,6 @@ PROC drawEnemy
 
 	ret
 ENDP drawEnemy
-
-PROC drawPlayer
-	USES eax, ebx, ecx
-
-	; read position and push on stack
-	mov ebx, offset player
-	movzx eax, [ebx + players.x]
-	; push eax
-	movzx ecx, [ebx + players.y]
-	; push eax
-
-	; Draw enemy sprite
-	;lea eax, [sprite + 8]
-	;call ReadFile, offset sprite_file, eax, DATASIZE
-	;pop ebx	; read location from stack
-	;pop eax
-	;call drawSprite, offset sprite, VMEMADR, eax, ebx   ;Draw sprite at (0,0)
-	call drawRectangle, eax, ebx, 20, 20, 6
-
-	ret
-ENDP drawPlayer
 
 
 ; Set the video mode
@@ -274,77 +257,125 @@ ENDP drawSprite
 ; -------------------------------------------------------------------
 ; Other Procedures
 ; -------------------------------------------------------------------
+PROC collision
+	;axis-aligned bounding box
+	;returns AX = 1 if collision or AX = 0 if no collision
+	ARG @@x1: word, @@y1: word, @@h1: word, @@w1: word, @@x2: word, @@y2: word, @@h2: word, @@w2: word
+	USES eax, ebx, ecx
+
+	;check the collision!!
+	;if (x1 >= x2 + w2) => no collision
+	mov ax, [@@x2]
+	add ax, [@@w2]
+	cmp [@@x1], ax
+	jge @@NoHit
+
+	;if (x1 + w1 <= x2) => no collision
+	mov ax, [@@x1]
+	add ax, [@@w1]
+	cmp ax, [@@x2]
+	jle @@NoHit
+	
+	;if (y1 >= y2 + h2) => no collision
+	mov ax, [@@y2]
+	add ax, [@@h2]
+	cmp [@@y1], ax
+	jge @@NoHit
+
+	;if (y1 + h1 <= y2) => no collision
+	mov ax, [@@y1]
+	add ax, [@@h1]
+	cmp ax, [@@y2]
+	jle @@NoHit
+	
+	;if all fulfilled
+	mov ax, 1
+	ret
+
+	;if one not fulfilled
+	@@NoHit:
+	xor ax, ax
+	ret
+
+ENDP collision
+
+PROC collisionBorders
+    ARG @@x:word, @@y:word, @@w:word, @@h:word, @@speed_x:word, @@speed_y:word
+	USES eax
+
+	mov ax, VIRSCRHEIGHT
+	sub ax, [@@h]
+	cmp [@@y], ax
+	jle @@CheckTopLimit
+
+	mov [@@y], ax
+	neg [@@speed_y]
+	jmp @@CheckLeftLimit
+	
+	@@CheckTopLimit:
+	cmp [@@y], 0
+	jge @@CheckRightLimit
+	mov [@@y], 0
+	neg [@@speed_y]
+
+	@@CheckRightLimit:
+	mov ax, VIRSCRWIDTH
+	sub ax, [@@w]
+	cmp [@@x], ax
+	jle @@CheckLeftLimit
+
+	mov [@@x], ax
+	neg [@@speed_x]
+	jmp @@done
+
+	@@CheckLeftLimit:
+	cmp [@@x], 0
+	jge @@done
+	mov [@@x], 0
+	neg [@@speed_x]
+
+@@done:
+	ret
+ENDP collisionBorders
+
 
 PROC movementEnemy
     ARG @@enemy: dword
-    USES eax, ebx, ecx
+    USES eax, ebx
 	LOCAL @@randnumx: word, @@randnumy: word
 
     mov ebx, [@@enemy]
-	
-	; makes it move in vertical lines, not randomized movement
-	;mov ax, [ebx + enemies.x]
-	;add ax, [ebx + enemies.speed_x]
-	;mov [ebx + enemies.x], ax
-	
-	;mov ax, [ebx + enemies.y]
-	;add ax, [ebx + enemies.speed_y]
-	;mov [ebx + enemies.y], ax
-
 
 	;randomized movement
 	;random number for x movement
 	call rand16     ;random 16-bit number in AX
-	and ax,	7h  	 ; 0..7 => "and" operation
-	sub ax, 3 	    ;-3..+4 => movement in negative direction
+	sub ax, 7fffh 	    ; - (2^16) / 2
+	sar ax, 13			; / 2^13
 	mov [@@randnumx], ax
 	
 	;random number for y movement
 	call rand16     ;random 16-bit number in AX
-	and ax, 7h
-	sub ax, 3   	;now also movement in the negative direction
+	;and ax, 0fh
+	sub eax, 7fffh   	;now also movement in the negative direction
+	sar eax, 13
 	mov [@@randnumy], ax
+
 	
     ; change x position
     mov ax, [ebx + enemies.x]
     add ax, [@@randnumx]
+	add ax, [ebx + enemies.speed_x]
     mov [ebx + enemies.x], ax
 
     ; change y position
     mov ax, [ebx + enemies.y]
     add ax, [@@randnumy]	
+	add ax, [ebx + enemies.speed_y]
     mov [ebx + enemies.y], ax
 	
 	
 	;apply a limit to x and y to the enemy position so it stays on screen
-	cmp [ebx + enemies.y], SCRHEIGHT-SPRITEHEIGHT
-	jle @@CheckBottomLimit
-	mov [ebx + enemies.y], SCRHEIGHT-SPRITEHEIGHT
-	;neg [ebx + enemies.speed_y]  ;switch speed direction by applying the two's complement negation
-	jmp @@done
-
-@@CheckBottomLimit:
-	cmp [ebx + enemies.x], SCRWIDTH - SPRITEWIDTH
-	jle @@CheckTopLimit
-	mov [ebx + enemies.x], SCRWIDTH - SPRITEWIDTH
-	;neg [ebx + enemies.speed_x]
-	jmp @@done
-
-@@CheckTopLimit:
-	cmp [ebx + enemies.y], 0
-	jge @@CheckLeftLimit
-	mov [ebx + enemies.y], 0
-	;neg [ebx + enemies.speed_y]
-	jmp @@done
-
-@@CheckLeftLimit:
-	cmp [ebx + enemies.x], 0
-	jge @@done
-	mov [ebx + enemies.x], 0
-	;neg [ebx + enemies.speed_x]
-
-@@done:
-	ret
+    call collisionBorders, [ebx + enemies.x], [ebx + enemies.y], SPRITEWIDTH, SPRITEHEIGHT, [ebx + enemies.speed_x], [ebx + enemies.speed_y]
 
 ENDP movementEnemy
 ; -------------------------------------------------------------------
@@ -466,7 +497,7 @@ ENDP detectInput
 
 PROC move_player
 	ARG @@dir_x:dword, @@dir_y:dword
-	USES eax, ebx, ecx, edx
+	USES eax, ebx, ecx
 
     mov ebx, offset player
 
@@ -479,15 +510,17 @@ PROC move_player
     mov [ebx + players.x], cx
 
 
-	; calculation  position
+	; calculation y position
     mov ax, [ebx + players.speed_y]
 	imul [@@dir_y]
 	; movement y
     mov cx, [ebx + players.y]
 	add cx, ax
     mov [ebx + players.y], cx
-	
-	ret
+
+	;apply a limit to x and y to the enemy position so it stays on screen
+  	call collisionBorders, [ebx + players.x], [ebx + players.y], SPRITEWIDTH, SPRITEHEIGHT, [ebx + players.speed_x], [ebx + players.speed_y]
+
 ENDP move_player
 
 init:
@@ -507,7 +540,6 @@ init:
 gameloop:
     ; Player input and movement
 	call detectInput
-	call detectInput
 
 	; stop game when esc is pressed
 	movzx eax, [__keyb_rawScanCode] ; last pressed key
@@ -518,27 +550,18 @@ gameloop:
 	; NPC tick
 	call movementEnemy, offset enemy1
 
-	; NPC tick
-	call movementEnemy, offset enemy1
-
     ; draw logic
 	call fillBackground, 3
 
+	; draw enemies
 	call drawEnemy, offset enemy1
 	
 	; draw player
 	mov ebx, offset player
 	movzx eax, [ebx + players.x]
+	shr eax, 2
 	movzx ecx, [ebx + players.y]
-	call drawRectangle, eax, ecx, 20, 20, 6
-	
-
-	call drawEnemy, offset enemy1
-	
-	; draw player
-	mov ebx, offset player
-	movzx eax, [ebx + players.x]
-	movzx ecx, [ebx + players.y]
+	shr ecx, 2
 	call drawRectangle, eax, ecx, 20, 20, 6
 	
 
@@ -559,7 +582,7 @@ STRUC enemies
      y  dw 0  
      speed_x dw 0  
      speed_y dw 0  
-     health db 100
+     health dw 100
      sprite dd 0
 ENDS enemies
 
@@ -570,17 +593,6 @@ STRUC players
     speed_y dw 0
 	health db 100
 ENDS players
-
-
-
-STRUC players
-	x dw 0
-	y dw 0
-    speed_x dw 0
-    speed_y dw 0
-	health db 100
-ENDS players
-
 
 
 ; -------------------------------------------------------------------
@@ -597,7 +609,7 @@ DATASEG
 	openErrorMsg db "could not open file", 13, 10, '$'
 	readErrorMsg db "could not read data", 13, 10, '$'
 	closeErrorMsg db "error during file closing", 13, 10, '$'
-	sprite DD SPRITEWIDTH, SPRITEHEIGHT ; see that first two elements are double words specifying sprite dimensions
+	sprite DD SPRITEWIDTH/4, SPRITEHEIGHT/4 ; see that first two elements are double words specifying sprite dimensions
 	DB DATASIZE DUP (0)
 ; -------------------------------------------------------------------
 ; STACK
