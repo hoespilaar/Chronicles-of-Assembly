@@ -562,11 +562,8 @@ gameloop:
 	call movementEnemy, offset enemy1
 
     ; draw logic
-<<<<<<< HEAD
 	call fillBackground, 3
-=======
 	call drawSprite, offset background, VMEMADR, 0, 0 
->>>>>>> f4e9b353938786e3ec55a8a64e1de8eac6a5ec64
 
 	; draw enemies
 	call drawEnemy, offset enemy1
@@ -609,11 +606,6 @@ STRUC players
 	health db 100
 ENDS players
 
-
-<<<<<<< HEAD
-=======
-
->>>>>>> f4e9b353938786e3ec55a8a64e1de8eac6a5ec64
 ; -------------------------------------------------------------------
 ; DATA
 ; -------------------------------------------------------------------
