@@ -26,7 +26,7 @@ VIRSCRHEIGHT EQU 200*4 ; virtual screen height
 
 SPRITEWIDTH EQU 20*4	; virtual sprite size
 SPRITEHEIGHT EQU 20*4		; virtual sprite size
-DATASIZE EQU SPRITEWIDTH*SPRITEHEIGHT;bytes of data in file
+DATASIZE EQU SPRITEWIDTH*SPRITEHEIGHT/16;bytes of data in file
 
 
 ; -------------------------------------------------------------------
@@ -143,6 +143,51 @@ PROC drawEnemy
 	ret
 ENDP drawEnemy
 
+PROC drawPlayer
+	USES eax, ebx, ecx
+
+	lea eax, [sprite + 8]
+	push eax
+
+	; read the direction of the player
+	mov ebx, offset player
+	movzx eax, [ebx + players.dir]
+	
+	cmp eax, 1
+	jne @@up
+	pop eax
+	call ReadFile, offset player_right_sprite, eax, DATASIZE
+	jmp @@draw
+
+@@up:
+	cmp eax, 2
+	jne @@left
+	pop eax
+	call ReadFile, offset player_up_sprite, eax, DATASIZE
+	jmp @@draw
+
+@@left:
+	cmp eax, 3
+	jne @@down
+	pop eax
+	call ReadFile, offset player_left_sprite, eax, DATASIZE
+	jmp @@draw
+
+@@down:
+	pop eax
+	call ReadFile, offset player_down_sprite, eax, DATASIZE
+
+@@draw:
+	; get player location
+	movzx eax, [ebx + players.x]
+	shr eax, 2
+	movzx ecx, [ebx + players.y]
+	shr ecx, 2
+
+	call drawSprite, offset sprite, VMEMADR, eax, ecx   ;Draw sprite at (0,0)
+
+	ret
+ENDP drawPlayer
 
 ; Set the video mode
 ; from excercises
@@ -460,24 +505,28 @@ ENDP ReadFile
 
 ; Player input
 PROC detectInput
-	USES ebx, eax, ecx
+	USES ebx, eax, ecx, edx
 
 	xor eax, eax ; x-directions are in here
 	xor ecx, ecx ; y-directions are in here
 
-	@@detectZ:
-    mov bl, [offset __keyb_keyboardState + 11h]
-    test bl, bl
-    jz @@detectD  
-	; direction up
-	add ecx, -1
+	xor edx, edx		; direction variable
 
 	@@detectD:
     mov bl, [offset __keyb_keyboardState + 20h]
     test bl, bl
-	jz @@detectQ
+	jz @@detectZ
 	; move right
 	add eax, 1
+	mov edx, 1
+
+	@@detectZ:
+    mov bl, [offset __keyb_keyboardState + 11h]
+    test bl, bl
+    jz @@detectQ  
+	; direction up
+	add ecx, -1
+	mov edx, 2
 
 	@@detectQ:
     mov bl, [offset __keyb_keyboardState + 1Eh]
@@ -485,18 +534,27 @@ PROC detectInput
     jz @@detectS 
 	; move left
 	add eax, -1
+	mov edx, 3
 
 	@@detectS:
     mov bl, [offset __keyb_keyboardState + 1Fh]
     test bl, bl
-    jz @@end
+    jz @@setDir
 	; move down
 	add ecx, 1
+	mov edx, 4
 
-	@@end:
-	
+@@setDir:
 	call move_player, eax, ecx
 
+
+	test edx, edx
+	jz @@end
+
+	mov ebx, offset player
+	mov [ebx + players.dir], dl
+
+@@end:
 	ret
 ENDP detectInput
 
@@ -523,7 +581,6 @@ PROC move_player
     mov cx, [ebx + players.y]
 	add cx, ax
     mov [ebx + players.y], cx
-
 
 	;apply a limit to x and y to the enemy position so it stays on screen
   	call collisionBorders, [ebx + players.x], [ebx + players.y], SPRITEWIDTH, SPRITEHEIGHT, [ebx + players.speed_x], [ebx + players.speed_y]
@@ -561,6 +618,11 @@ gameloop:
 	; NPC tick
 	call movementEnemy, offset enemy1
 
+	mov ebx, offset player
+	movzx eax, [ebx + players.dir]
+	
+
+
     ; draw logic
 	call fillBackground, 3
 	call drawSprite, offset background, VMEMADR, 0, 0 
@@ -569,12 +631,7 @@ gameloop:
 	call drawEnemy, offset enemy1
 	
 	; draw player
-	mov ebx, offset player
-	movzx eax, [ebx + players.x]
-	shr eax, 2
-	movzx ecx, [ebx + players.y]
-	shr ecx, 2
-	call drawRectangle, eax, ecx, 20, 20, 6
+	call drawPlayer
 	
 
 
@@ -603,6 +660,7 @@ STRUC players
 	y dw 0
     speed_x dw 0
     speed_y dw 0
+	dir db 0
 	health db 100
 ENDS players
 
@@ -610,7 +668,7 @@ ENDS players
 ; DATA
 ; -------------------------------------------------------------------
 DATASEG
-	player players <0, 0, 1, 1, 100>
+	player players <0, 0, 2, 2, 0, 100>
     enemy1 enemies <0, 100, 1, 1, 100, 7>
 
 	gameActive db 1
@@ -622,6 +680,11 @@ DATASEG
 	closeErrorMsg db "error during file closing", 13, 10, '$'
 	sprite DD SPRITEWIDTH/4, SPRITEHEIGHT/4 ; see that first two elements are double words specifying sprite dimensions
 	DB DATASIZE DUP (0)
+
+	player_up_sprite db "Images/PUp.bin", 0
+	player_down_sprite db "Images/PDown.bin", 0
+	player_left_sprite db "Images/PLeft.bin", 0
+	player_right_sprite db "Images/PRight.bin", 0
 
 	background_file db "Images\Backg.bin", 0
 	background DD SCRWIDTH, SCRHEIGHT
