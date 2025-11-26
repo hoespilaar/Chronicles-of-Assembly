@@ -353,7 +353,7 @@ PROC collisionBorders
 	cmp [@@y], ax
 	jle @@CheckTopLimit
 
-	mov [@@y], ax
+	mov ax, [@@y]
 	neg [@@speed_y]
 	jmp @@CheckLeftLimit
 	
@@ -369,7 +369,7 @@ PROC collisionBorders
 	cmp [@@x], ax
 	jle @@CheckLeftLimit
 
-	mov [@@x], ax
+	mov ax, [@@x]
 	neg [@@speed_x]
 	jmp @@done
 
@@ -422,6 +422,8 @@ PROC movementEnemy
 	;apply a limit to x and y to the enemy position so it stays on screen
 
     call collisionBorders, [ebx + enemies.x], [ebx + enemies.y], SPRITEWIDTH, SPRITEHEIGHT, [ebx + enemies.speed_x], [ebx + enemies.speed_y]
+	
+	ret
 
 ENDP movementEnemy
 ; -------------------------------------------------------------------
@@ -585,6 +587,7 @@ PROC move_player
 	;apply a limit to x and y to the enemy position so it stays on screen
   	call collisionBorders, [ebx + players.x], [ebx + players.y], SPRITEWIDTH, SPRITEHEIGHT, [ebx + players.speed_x], [ebx + players.speed_y]
 
+	ret
 ENDP move_player
 
 init:
