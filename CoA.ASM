@@ -334,7 +334,7 @@ PROC collisionBorders
 	mov [@@x], 0
 	neg [@@speed_x]
 
-@@done:
+	@@done:
 	ret
 ENDP collisionBorders
 
@@ -376,7 +376,7 @@ PROC movementEnemy
 	
 	;apply a limit to x and y to the enemy position so it stays on screen
 
-    call collisionBorders, [ebx + enemies.x], [ebx + enemies.y], SPRITEWIDTH, SPRITEHEIGHT, [ebx + enemies.speed_x], [ebx + enemies.speed_y]
+    ; call collisionBorders, [ebx + enemies.x], [ebx + enemies.y], SPRITEWIDTH, SPRITEHEIGHT, [ebx + enemies.speed_x], [ebx + enemies.speed_y]
 
 ENDP movementEnemy
 ; -------------------------------------------------------------------
