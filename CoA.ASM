@@ -348,7 +348,7 @@ PROC collisionBorders
     ARG @@x:word, @@y:word, @@w:word, @@h:word, @@speed_x:word, @@speed_y:word
 	USES eax
 
-	mov ax, VIRSCRHEIGHT
+	mov ax,  VIRSCRHEIGHT
 	sub ax, [@@h]
 	cmp [@@y], ax
 	jle @@CheckTopLimit
