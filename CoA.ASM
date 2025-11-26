@@ -184,6 +184,7 @@ PROC drawPlayer
 	movzx ecx, [ebx + players.y]
 	shr ecx, 2
 
+
 	call drawSprite, offset sprite, VMEMADR, eax, ecx   ;Draw sprite at (0,0)
 
 	ret
@@ -346,7 +347,7 @@ ENDP collision
 
 PROC collisionBorders
     ARG @@x:word, @@y:word, @@w:word, @@h:word, @@speed_x:word, @@speed_y:word
-	USES eax
+	USES eax, edx
 
 	mov ax,  VIRSCRHEIGHT
 	sub ax, [@@h]
@@ -547,9 +548,6 @@ PROC detectInput
 	mov edx, 4
 
 @@setDir:
-	call move_player, eax, ecx
-
-
 	test edx, edx
 	jz @@end
 
@@ -557,13 +555,15 @@ PROC detectInput
 	mov [ebx + players.dir], dl
 
 @@end:
+	; for some reason this function changes the value of edx, so call this at the end of the procedure
+	call move_player, eax, ecx
 	ret
 ENDP detectInput
 
 
 PROC move_player
 	ARG @@dir_x:dword, @@dir_y:dword
-	USES eax, ebx, ecx
+	USES eax, ebx, ecx, edx
 
     mov ebx, offset player
 
@@ -620,10 +620,6 @@ gameloop:
 
 	; NPC tick
 	call movementEnemy, offset enemy1
-
-	mov ebx, offset player
-	movzx eax, [ebx + players.dir]
-	
 
 
     ; draw logic
