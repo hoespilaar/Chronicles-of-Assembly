@@ -348,14 +348,14 @@ PROC applyTransparancy
 	mov ecx, SCRHEIGHT*SCRWIDTH
 
 	@@lookForHits:
-	REPNE scasb	; using repnz here will cause an infinite loop
+	REPNE scasb	; look for the next value equal to transparent color
 
 	test ecx, ecx
 	jz @@end
 
 	mov ebx, edi	; calculate the difference from the starting adress
 	sub ebx, VMEMADR
-	sub ebx, 1		; we've already counted one byte more with scasb
+	sub ebx, 1		; we've already counted one byte extra with scasb
 
 	mov esi, offset background	; copy the value of the background pixel to the vmem adress
 	mov dl, [esi+ebx+8]; skip the first two elements of background array (width and height, doubles)
