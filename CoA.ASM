@@ -87,19 +87,59 @@ PROC printInt
      ret
 ENDP printInt
 
+PROC printIntByte
+     ARG @@number:byte
+     USES eax, ebx, ecx, edx
+
+     movzx eax, [@@number]
+
+     ; check if it is negative
+     test eax, eax
+     jns @@skipSign
+
+     ; print minus sign and negate eax
+     push eax
+     mov ah, 2h
+     mov dl, '-'
+     int 21h
+     pop eax
+     neg eax
+
+	@@skipSign:
+		mov ebx, 10    ; divisor
+		xor ecx, ecx   ; set all ecx to zero, faster than {mov ecx, 0}
+
+	@@getNextDigit:
+		inc ecx        ; count up
+		xor edx, edx   ; clear
+		div ebx        ; divide by ebx
+		push dx        ; save to stack
+		test eax, eax  ; check if zero
+		jnz @@getNextDigit
+
+		mov ah, 2h     ; 21.9
+	@@printDigits:
+		pop dx
+		add dl, '0'    ; Ascii offset off number symbols
+		int 21h        ; print
+		loop @@printDigits ; loop until all digits are printed
+
+     ret
+ENDP printIntByte
+
 ; from excercises
 PROC printIntList
-	ARG @@arraypt:dword
+	ARG @@arraypt:dword, @@arrayLnt:dword
 	USES eax, ebx, ecx, edx
 
 	mov ebx, [@@arraypt]	; locatie in ebx
-	mov ecx, [ebx]			; waarde in ecx
+	mov ecx, [@@arrayLnt]			; waarde in ecx
 
 	mov ah, 2h
 
 	@@printLoop:
 		add ebx, 4 				; move to next integer
-		call printInt, [dword ptr ebx]	; print the number
+		call printInt, [word ptr ebx]	; print the number
 
 		mov edx, ','			; print comma
 		int 21h
@@ -299,6 +339,33 @@ PROC drawSprite
 	ret
 ENDP drawSprite
 
+
+PROC applyTransparancy
+	USES eax, ebx, ecx, edx, edi, esi
+
+	mov edi, VMEMADR
+	mov al, 2bh	; transparent color
+	mov ecx, SCRHEIGHT*SCRWIDTH
+
+	@@lookForHits:
+	REPNE scasb	; using repnz here will cause an infinite loop
+
+	test ecx, ecx
+	jz @@end
+
+	mov ebx, edi	; calculate the difference from the starting adress
+	sub ebx, VMEMADR
+	sub ebx, 1		; we've already counted one byte more with scasb
+
+	mov esi, offset background	; copy the value of the background pixel to the vmem adress
+	mov dl, [esi+ebx+8]; skip the first two elements of background array (width and height, doubles)
+	mov [edi-1], dl 
+
+	jmp @@lookForHits ; look for next one
+
+	@@end:
+	ret
+ENDP applyTransparancy
 
 ; -------------------------------------------------------------------
 ; Other Procedures
@@ -623,7 +690,6 @@ gameloop:
 
 
     ; draw logic
-	call fillBackground, 3
 	call drawSprite, offset background, VMEMADR, 0, 0 
 
 	; draw enemies
@@ -632,7 +698,7 @@ gameloop:
 	; draw player
 	call drawPlayer
 	
-
+	call applyTransparancy
 
 	; end of loop
     call wait_VBLANK, 1
