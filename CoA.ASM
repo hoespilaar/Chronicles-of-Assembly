@@ -413,42 +413,52 @@ PROC collision
 ENDP collision
 
 PROC collisionBorders
+<<<<<<< HEAD
+; returns ax = 1, 2, 3, 4 of collision on respectively bottom, top, left, right, ax = 0 if no collision
+    ARG @@x:word, @@y:word, @@w:word, @@h:word
+	USES eax, ebx
+=======
     ARG @@x:word, @@y:word, @@w:word, @@h:word, @@speed_x:word, @@speed_y:word
 	USES eax, edx
+>>>>>>> 17bb712658c17a51d86c174bbf0a70545368aac3
 
-	mov ax,  VIRSCRHEIGHT
+;check bottom limit
+	mov ax, VIRSCRHEIGHT
 	sub ax, [@@h]
 	cmp [@@y], ax
-	jle @@CheckTopLimit
+	jle @@checkTop
+	mov ax, 1  ;moves 1 into AX if bottom is hit
+	jmp @@done
 
-	mov ax, [@@y]
-	neg [@@speed_y]
-	jmp @@CheckLeftLimit
-	
-	@@CheckTopLimit:
+;check top limit
+	@@checkTop:
 	cmp [@@y], 0
-	jge @@CheckRightLimit
-	mov [@@y], 0
-	neg [@@speed_y]
+	jge @@checkLeft
+	mov ax, 2  ;moves 2 into AX if bottom is hit
+	jmp @@done
 
-	@@CheckRightLimit:
+;check left limit
+	@@checkLeft:
+	cmp [@@x], 0
+	jge @@checkRight
+	mov ax, 3   ;moves 3 into AX if bottom is hit
+	jmp @@done
+
+;check right limit
+	@@checkRight:
 	mov ax, VIRSCRWIDTH
 	sub ax, [@@w]
 	cmp [@@x], ax
-	jle @@CheckLeftLimit
-
-	mov ax, [@@x]
-	neg [@@speed_x]
+	jle @@noCollision
+	mov ax, 4    ;moves 4 into AX if bottom is hit
 	jmp @@done
 
-	@@CheckLeftLimit:
-	cmp [@@x], 0
-	jge @@done
-	mov [@@x], 0
-	neg [@@speed_x]
+	@@noCollision:
+	xor ax, ax
 
 	@@done:
 	ret
+
 ENDP collisionBorders
 
 
@@ -487,10 +497,44 @@ PROC movementEnemy
     mov [ebx + enemies.y], ax
 	
 	
-	;apply a limit to x and y to the enemy position so it stays on screen
+	; apply a limit to x and y to the enemy position so it stays on screen
 
-    call collisionBorders, [ebx + enemies.x], [ebx + enemies.y], SPRITEWIDTH, SPRITEHEIGHT, [ebx + enemies.speed_x], [ebx + enemies.speed_y]
+    call collisionBorders, [ebx + enemies.x], [ebx + enemies.y], SPRITEWIDTH, SPRITEHEIGHT
+
+	cmp ax, 1
+	je @@BottomHit
 	
+	cmp ax, 2
+	je @@TopHit
+
+	cmp ax, 3
+	je @@LeftHit
+
+	cmp ax, 4
+	je @@RightHit
+	jmp @@done
+	
+	@@BottomHit:
+	mov [ebx + enemies.y], VIRSCRHEIGHT-SPRITEHEIGHT
+	neg [ebx + enemies.speed_y]
+	jmp @@done
+
+	@@TopHit:
+	mov [ebx + enemies.y], 0
+	neg [ebx + enemies.speed_y]
+	jmp @@done
+
+	@@LeftHit:
+	mov [ebx + enemies.x], 0
+	neg [ebx + enemies.speed_x]
+	jmp @@done
+
+	@@RightHit:
+	mov [ebx + enemies.x], VIRSCRWIDTH-SPRITEWIDTH
+	neg [ebx + enemies.speed_x]
+	jmp @@done
+	
+	@@done:
 	ret
 
 ENDP movementEnemy
@@ -614,16 +658,26 @@ PROC detectInput
 	add ecx, 1
 	mov edx, 4
 
+<<<<<<< HEAD
+	@@setDir:
+	call move_player, eax, ecx
+
+=======
 @@setDir:
+>>>>>>> 17bb712658c17a51d86c174bbf0a70545368aac3
 	test edx, edx
 	jz @@end
 
 	mov ebx, offset player
 	mov [ebx + players.dir], dl
 
+<<<<<<< HEAD
+	@@end:
+=======
 @@end:
 	; for some reason this function changes the value of edx, so call this at the end of the procedure
 	call move_player, eax, ecx
+>>>>>>> 17bb712658c17a51d86c174bbf0a70545368aac3
 	ret
 ENDP detectInput
 
@@ -652,9 +706,40 @@ PROC move_player
     mov [ebx + players.y], cx
 
 	;apply a limit to x and y to the enemy position so it stays on screen
-  	call collisionBorders, [ebx + players.x], [ebx + players.y], SPRITEWIDTH, SPRITEHEIGHT, [ebx + players.speed_x], [ebx + players.speed_y]
+  	call collisionBorders, [ebx + players.x], [ebx + players.y], SPRITEWIDTH, SPRITEHEIGHT
 
+	cmp ax, 1
+	je @@BottomHit
+	
+	cmp ax, 2
+	je @@TopHit
+
+	cmp ax, 3
+	je @@LeftHit
+
+	cmp ax, 4
+	je @@RightHit
+	jmp @@done
+	
+	@@BottomHit:
+	mov [ebx + players.y], VIRSCRHEIGHT-SPRITEHEIGHT
+	jmp @@done
+
+	@@TopHit:
+	mov [ebx + players.y], 0
+	jmp @@done
+
+	@@LeftHit:
+	mov [ebx + players.x], 0
+	jmp @@done
+
+	@@RightHit:
+	mov [ebx + players.x], VIRSCRWIDTH-SPRITEWIDTH
+	jmp @@done
+	
+	@@done:
 	ret
+
 ENDP move_player
 
 init:
