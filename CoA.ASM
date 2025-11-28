@@ -87,6 +87,7 @@ PROC printInt
      ret
 ENDP printInt
 
+; seperate version to print byte values
 PROC printIntByte
      ARG @@number:byte
      USES eax, ebx, ecx, edx
@@ -413,14 +414,9 @@ PROC collision
 ENDP collision
 
 PROC collisionBorders
-<<<<<<< HEAD
 ; returns ax = 1, 2, 3, 4 of collision on respectively bottom, top, left, right, ax = 0 if no collision
     ARG @@x:word, @@y:word, @@w:word, @@h:word
 	USES eax, ebx
-=======
-    ARG @@x:word, @@y:word, @@w:word, @@h:word, @@speed_x:word, @@speed_y:word
-	USES eax, edx
->>>>>>> 17bb712658c17a51d86c174bbf0a70545368aac3
 
 ;check bottom limit
 	mov ax, VIRSCRHEIGHT
@@ -658,26 +654,18 @@ PROC detectInput
 	add ecx, 1
 	mov edx, 4
 
-<<<<<<< HEAD
 	@@setDir:
 	call move_player, eax, ecx
 
-=======
-@@setDir:
->>>>>>> 17bb712658c17a51d86c174bbf0a70545368aac3
 	test edx, edx
 	jz @@end
 
 	mov ebx, offset player
 	mov [ebx + players.dir], dl
 
-<<<<<<< HEAD
-	@@end:
-=======
 @@end:
 	; for some reason this function changes the value of edx, so call this at the end of the procedure
 	call move_player, eax, ecx
->>>>>>> 17bb712658c17a51d86c174bbf0a70545368aac3
 	ret
 ENDP detectInput
 
