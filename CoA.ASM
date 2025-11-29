@@ -414,32 +414,31 @@ ENDP collision
 
 PROC collisionBorders
 ; returns ax = 1, 2, 3, 4 of collision on respectively bottom, top, left, right, ax = 0 if no collision
-    ARG @@x:word, @@y:word, @@w:word, @@h:word
-	USES eax, ebx
+    ARG @@x:word, @@y:word, @@w:word, @@h:word RETURNS cx
+	USES eax
 
 	;AX = 0 if no border hit -> initialize
-	xor ax, ax
+	xor cx, cx
 
 ;check bottom limit
 	mov ax, VIRSCRHEIGHT
 	sub ax, [@@h]
 	cmp [@@y], ax
-	jl @@checkTop
-	mov ax, 1  ;moves 1 into AX if bottom is hit
-	jmp @@done
+	jle @@checkTop
+	mov cx, 1  ;moves 1 into cx if bottom is hit
+	jmp @@checkLeft
 
 ;check top limit
 	@@checkTop:
 	cmp [@@y], 0
-	jg @@checkLeft
-	mov ax, 2  ;moves 2 into AX if bottom is hit
-	jmp @@done
+	jge @@checkLeft
+	mov cx, 2  ;moves 2 into cx if top is hit
 
 ;check left limit
 	@@checkLeft:
 	cmp [@@x], 0
-	jg @@checkRight
-	mov ax, 3   ;moves 3 into AX if bottom is hit
+	jge @@checkRight
+	mov cx, 3   ;moves 3 into cx if left is hit
 	jmp @@done
 
 ;check right limit
@@ -447,12 +446,8 @@ PROC collisionBorders
 	mov ax, VIRSCRWIDTH
 	sub ax, [@@w]
 	cmp [@@x], ax
-	jl @@noCollision
-	mov ax, 4    ;moves 4 into AX if bottom is hit
-	jmp @@done
-
-	@@noCollision:
-	xor ax, ax
+	jle @@done
+	mov cx, 4    ;moves 4 into cx if right is hit
 
 	@@done:
 	ret
@@ -499,16 +494,16 @@ PROC movementEnemy
 
     call collisionBorders, [ebx + enemies.x], [ebx + enemies.y], SPRITEWIDTH, SPRITEHEIGHT
 
-	cmp ax, 1
+	cmp cx, 1
 	je @@BottomHit
 	
-	cmp ax, 2
+	cmp cx, 2
 	je @@TopHit
 
-	cmp ax, 3
+	cmp cx, 3
 	je @@LeftHit
 
-	cmp ax, 4
+	cmp cx, 4
 	je @@RightHit
 	jmp @@done
 	
@@ -657,8 +652,6 @@ PROC detectInput
 	mov edx, 4
 
 	@@setDir:
-	call move_player, eax, ecx
-
 	test edx, edx
 	jz @@end
 
@@ -695,39 +688,35 @@ PROC move_player
 	add cx, ax
     mov [ebx + players.y], cx
 
-	;apply a limit to x and y to the enemy position so it stays on screen
+	; apply a limit to x and y to the enemy position so it stays on screen
   	call collisionBorders, [ebx + players.x], [ebx + players.y], SPRITEWIDTH, SPRITEHEIGHT
 
-	cmp ax, 1
-	je @@BottomHit
-	
-	cmp ax, 2
-	je @@TopHit
-
-	cmp ax, 3
-	je @@LeftHit
-
-	cmp ax, 4
-	je @@RightHit
-	jmp @@done
-	
 	@@BottomHit:
+	cmp cx, 1
+	jne @@TopHit
 	mov [ebx + players.y], VIRSCRHEIGHT-SPRITEHEIGHT
 	jmp @@done
-
+	
 	@@TopHit:
+	cmp cx, 2
+	jne @@LeftHit
 	mov [ebx + players.y], 0
 	jmp @@done
 
 	@@LeftHit:
+	cmp cx, 3
+	jne @@RightHit
 	mov [ebx + players.x], 0
 	jmp @@done
 
 	@@RightHit:
+	cmp cx, 4
+	jne @@done
 	mov [ebx + players.x], VIRSCRWIDTH-SPRITEWIDTH
-	jmp @@done
 	
 	@@done:
+
+
 	ret
 
 ENDP move_player
