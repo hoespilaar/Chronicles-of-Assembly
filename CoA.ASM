@@ -771,8 +771,6 @@ STRUC enemies
      y  dd 0  
      speed_x dd 0  
      speed_y dd 0  
-     health dw 100
-     sprite dd 0
 ENDS enemies
 
 STRUC players
@@ -781,15 +779,14 @@ STRUC players
     speed_x dd 0
     speed_y dd 0
 	dir db 0
-	health db 100
 ENDS players
 
 ; -------------------------------------------------------------------
 ; DATA
 ; -------------------------------------------------------------------
 DATASEG
-	player players <0, 0, 2, 2, 0, 100>
-    enemy1 enemies <100, 100, 1, 1, 100, 7>
+	player players <0, 0, 2, 2, 0>
+    enemy1 enemies <100, 100, 1, 1>
 
 	gameActive db 1
 
