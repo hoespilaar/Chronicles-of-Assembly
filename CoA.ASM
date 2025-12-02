@@ -373,8 +373,10 @@ ENDP applyTransparancy
 PROC collision
 	;axis-aligned bounding box
 	;returns AX = 1 if collision or AX = 0 if no collision
-	ARG @@x1: word, @@y1: word, @@h1: word, @@w1: word, @@x2: word, @@y2: word, @@h2: word, @@w2: word
-	USES eax, ebx, ecx
+	ARG @@x1: word, @@y1: word, @@h1: word, @@w1: word, @@x2: word, @@y2: word, @@h2: word, @@w2: word RETURNS eax
+	USES ebx, ecx
+
+	xor eax, eax
 
 	;check the collision!!
 	;if (x1 >= x2 + w2) => no collision
@@ -413,7 +415,7 @@ PROC collision
 ENDP collision
 
 PROC collisionBorders
-; returns cx = 1, 2, 3, 4 of collision on respectively bottom, top, left, right, cx = 0 if no collision
+	; returns cx = 1, 2, 3, 4 of collision on respectively bottom, top, left, right, cx = 0 if no collision
     ARG @@x:dword, @@y:dword, @@w:dword, @@h:dword RETURNS ecx
 	USES eax
 
@@ -421,7 +423,7 @@ PROC collisionBorders
 	xor ecx, ecx
 	xor eax, eax
 
-;check bottom limit
+	;check bottom limit
 	mov eax, VIRSCRHEIGHT
 	sub eax, [@@h]
 	cmp [@@y], eax
@@ -429,19 +431,19 @@ PROC collisionBorders
 	mov ecx, 1  ;moves 1 into cx if bottom is hit
 	jmp @@checkLeft
 
-;check top limit
+	;check top limit
 	@@checkTop:
 	cmp [@@y], 0
 	jge @@checkLeft
 	mov ecx, 2  ;moves 2 into cx if top is hit
 
-;check left limit
+	;check left limit
 	@@checkLeft:
 	cmp [@@x], 0
 	jge @@checkRight
 	mov ecx, 3   ;moves 3 into cx if left is hit
 
-;check right limit
+	;check right limit
 	@@checkRight:
 	mov eax, VIRSCRWIDTH
 	sub eax, [@@w]
