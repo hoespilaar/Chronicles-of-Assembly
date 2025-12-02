@@ -413,46 +413,41 @@ PROC collision
 ENDP collision
 
 PROC collisionBorders
-; returns ax = 1, 2, 3, 4 of collision on respectively bottom, top, left, right, ax = 0 if no collision
-    ARG @@x:word, @@y:word, @@w:word, @@h:word
-	USES eax, ebx
+; returns cx = 1, 2, 3, 4 of collision on respectively bottom, top, left, right, cx = 0 if no collision
+    ARG @@x:word, @@y:word, @@w:word, @@h:word RETURNS ecx
+	USES eax
 
-	;AX = 0 if no border hit -> initialize
-	xor ax, ax
+	;cx = 0 if no border hit -> initialize
+	xor cx, cx
 
 ;check bottom limit
 	mov ax, VIRSCRHEIGHT
 	sub ax, [@@h]
 	cmp [@@y], ax
-	jl @@checkTop
-	mov ax, 1  ;moves 1 into AX if bottom is hit
-	jmp @@done
+	jle @@checkTop
+	mov cx, 1  ;moves 1 into cx if bottom is hit
+	jmp @@checkLeft
 
 ;check top limit
 	@@checkTop:
 	cmp [@@y], 0
-	jg @@checkLeft
-	mov ax, 2  ;moves 2 into AX if bottom is hit
-	jmp @@done
+	jge @@checkLeft
+	mov cx, 2  ;moves 2 into cx if top is hit
 
 ;check left limit
 	@@checkLeft:
 	cmp [@@x], 0
-	jg @@checkRight
-	mov ax, 3   ;moves 3 into AX if bottom is hit
-	jmp @@done
+	jge @@checkRight
+	mov cx, 3   ;moves 3 into cx if left is hit
 
 ;check right limit
 	@@checkRight:
 	mov ax, VIRSCRWIDTH
 	sub ax, [@@w]
 	cmp [@@x], ax
-	jl @@noCollision
-	mov ax, 4    ;moves 4 into AX if bottom is hit
+	jle @@done
+	mov cx, 4   ;moves 4 into cx if right is hit
 	jmp @@done
-
-	@@noCollision:
-	xor ax, ax
 
 	@@done:
 	ret
@@ -493,45 +488,36 @@ PROC movementEnemy
     add ax, [@@randnumy]	
 	add ax, [ebx + enemies.speed_y]
     mov [ebx + enemies.y], ax
-	
-	
+
 	; apply a limit to x and y to the enemy position so it stays on screen
 
     call collisionBorders, [ebx + enemies.x], [ebx + enemies.y], SPRITEWIDTH, SPRITEHEIGHT
-
-	cmp ax, 1
-	je @@BottomHit
 	
-	cmp ax, 2
-	je @@TopHit
-
-	cmp ax, 3
-	je @@LeftHit
-
-	cmp ax, 4
-	je @@RightHit
+	jmp [Jump_Table_Enemy + ecx*4]
+	
+	noCollisionEnemy:
 	jmp @@done
-	
-	@@BottomHit:
+
+	bottomHitEnemy:
 	mov [ebx + enemies.y], VIRSCRHEIGHT-SPRITEHEIGHT
 	neg [ebx + enemies.speed_y]
 	jmp @@done
-
-	@@TopHit:
+	
+	topHitEnemy:
 	mov [ebx + enemies.y], 0
 	neg [ebx + enemies.speed_y]
 	jmp @@done
 
-	@@LeftHit:
+	leftHitEnemy:
 	mov [ebx + enemies.x], 0
 	neg [ebx + enemies.speed_x]
 	jmp @@done
 
-	@@RightHit:
+	rightHitEnemy:
 	mov [ebx + enemies.x], VIRSCRWIDTH-SPRITEWIDTH
 	neg [ebx + enemies.speed_x]
 	jmp @@done
-	
+
 	@@done:
 	ret
 
@@ -657,8 +643,6 @@ PROC detectInput
 	mov edx, 4
 
 	@@setDir:
-	call move_player, eax, ecx
-
 	test edx, edx
 	jz @@end
 
@@ -695,38 +679,31 @@ PROC move_player
 	add cx, ax
     mov [ebx + players.y], cx
 
-	;apply a limit to x and y to the enemy position so it stays on screen
+	; apply a limit to x and y to the enemy position so it stays on screen
   	call collisionBorders, [ebx + players.x], [ebx + players.y], SPRITEWIDTH, SPRITEHEIGHT
 
-	cmp ax, 1
-	je @@BottomHit
+	jmp [Jump_Table_Player + ecx*4]
 	
-	cmp ax, 2
-	je @@TopHit
-
-	cmp ax, 3
-	je @@LeftHit
-
-	cmp ax, 4
-	je @@RightHit
+	noCollisionPlayer:
 	jmp @@done
-	
-	@@BottomHit:
+
+	bottomHitPlayer:
 	mov [ebx + players.y], VIRSCRHEIGHT-SPRITEHEIGHT
 	jmp @@done
-
-	@@TopHit:
+	
+	topHitPlayer:
 	mov [ebx + players.y], 0
 	jmp @@done
 
-	@@LeftHit:
+	leftHitPlayer:
 	mov [ebx + players.x], 0
 	jmp @@done
 
-	@@RightHit:
+
+	rightHitPlayer:
 	mov [ebx + players.x], VIRSCRWIDTH-SPRITEWIDTH
 	jmp @@done
-	
+
 	@@done:
 	ret
 
@@ -833,6 +810,10 @@ DATASEG
 	background_file db "Images\Backg.bin", 0
 	background DD SCRWIDTH, SCRHEIGHT
 	DB SCRWIDTH*SCRHEIGHT DUP (0)
+	
+	; Jump Tables for collision handling
+	Jump_Table_Player dd noCollisionPlayer, bottomHitPlayer, topHitPlayer, leftHitPlayer, rightHitPlayer
+	Jump_Table_Enemy dd noCollisionEnemy, bottomHitEnemy, topHitEnemy, leftHitEnemy, rightHitEnemy
 ; -------------------------------------------------------------------
 ; STACK
 ; -------------------------------------------------------------------
