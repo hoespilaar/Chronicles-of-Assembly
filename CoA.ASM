@@ -415,11 +415,7 @@ PROC collision
 ENDP collision
 
 PROC collisionBorders
-<<<<<<< HEAD
  ;returns cx = 1, 2, 3, 4 of collision on respectively bottom, top, left, right, cx = 0 if no collision
-=======
-	; returns cx = 1, 2, 3, 4 of collision on respectively bottom, top, left, right, cx = 0 if no collision
->>>>>>> 93e0439d4166f133ea1780572e654becf39f982e
     ARG @@x:dword, @@y:dword, @@w:dword, @@h:dword RETURNS ecx
 	USES eax
 
@@ -427,11 +423,7 @@ PROC collisionBorders
 	xor ecx, ecx
 	xor eax, eax
 
-<<<<<<< HEAD
  ;check bottom limit
-=======
-	;check bottom limit
->>>>>>> 93e0439d4166f133ea1780572e654becf39f982e
 	mov eax, VIRSCRHEIGHT
 	sub eax, [@@h]
 	cmp [@@y], eax
@@ -439,31 +431,19 @@ PROC collisionBorders
 	mov ecx, 1  ;moves 1 into cx if bottom is hit
 	jmp @@checkLeft
 
-<<<<<<< HEAD
  ;check top limit
-=======
-	;check top limit
->>>>>>> 93e0439d4166f133ea1780572e654becf39f982e
 	@@checkTop:
 	cmp [@@y], 0
 	jge @@checkLeft
 	mov ecx, 2  ;moves 2 into cx if top is hit
 
-<<<<<<< HEAD
  ;check left limit
-=======
-	;check left limit
->>>>>>> 93e0439d4166f133ea1780572e654becf39f982e
 	@@checkLeft:
 	cmp [@@x], 0
 	jge @@checkRight
 	mov ecx, 3   ;moves 3 into cx if left is hit
 
-<<<<<<< HEAD
  ;check right limit
-=======
-	;check right limit
->>>>>>> 93e0439d4166f133ea1780572e654becf39f982e
 	@@checkRight:
 	mov eax, VIRSCRWIDTH
 	sub eax, [@@w]
@@ -764,7 +744,6 @@ gameloop:
 	mov esi, offset arrayEnemies
 	mov cx, 5
 
-<<<<<<< HEAD
 	loop_movement_enemies:
 	mov ebx, [esi]
 	call movementEnemy, ebx
@@ -772,10 +751,6 @@ gameloop:
 	dec cx
 	jnz loop_movement_enemies
 	
-=======
-	; NPC tick
-	call movementEnemy, offset enemy1
->>>>>>> 93e0439d4166f133ea1780572e654becf39f982e
 
     ; draw logic
 	call drawSprite, offset background, VMEMADR, 0, 0 
@@ -812,10 +787,7 @@ STRUC enemies
      y  dd 0  
      speed_x dd 0  
      speed_y dd 0  
-<<<<<<< HEAD
      health dw 100
-=======
->>>>>>> 93e0439d4166f133ea1780572e654becf39f982e
 ENDS enemies
 
 STRUC players
@@ -824,13 +796,14 @@ STRUC players
     speed_x dd 0
     speed_y dd 0
 	dir db 0
+	health dw 100
+
 ENDS players
 
 ; -------------------------------------------------------------------
 ; DATA
 ; -------------------------------------------------------------------
 DATASEG
-<<<<<<< HEAD
 	player players <0, 0, 2, 2, 0, 100>
     enemy1 enemies <100, 70, 1, 1, 100>
 	enemy2 enemies <200, 400, 1, 1, 100>
@@ -839,10 +812,6 @@ DATASEG
 	enemy5 enemies <400, 260, 1, 1, 100>
 	
 	arrayEnemies dd offset enemy1, offset enemy2, offset enemy3, offset enemy4, offset enemy5
-=======
-	player players <0, 0, 2, 2, 0>
-    enemy1 enemies <100, 100, 1, 1>
->>>>>>> 93e0439d4166f133ea1780572e654becf39f982e
 
 	gameActive db 1
 
