@@ -167,10 +167,10 @@ PROC drawEnemy
 
 	; read position and push on stack
 	mov ebx, [@@enem]
-	movzx eax, [ebx + enemies.x]
+	mov eax, [ebx + enemies.x]
 	shr eax, 2
 	push eax
-	movzx eax, [ebx + enemies.y]
+	mov eax, [ebx + enemies.y]
 	shr eax, 2
 	push eax
 
@@ -200,29 +200,29 @@ PROC drawPlayer
 	call ReadFile, offset player_right_sprite, eax, DATASIZE
 	jmp @@draw
 
-@@up:
+ @@up:
 	cmp eax, 2
 	jne @@left
 	pop eax
 	call ReadFile, offset player_up_sprite, eax, DATASIZE
 	jmp @@draw
 
-@@left:
+ @@left:
 	cmp eax, 3
 	jne @@down
 	pop eax
 	call ReadFile, offset player_left_sprite, eax, DATASIZE
 	jmp @@draw
 
-@@down:
+ @@down:
 	pop eax
 	call ReadFile, offset player_down_sprite, eax, DATASIZE
 
-@@draw:
+ @@draw:
 	; get player location
-	movzx eax, [ebx + players.x]
+	mov eax, [ebx + players.x]
 	shr eax, 2
-	movzx ecx, [ebx + players.y]
+	mov ecx, [ebx + players.y]
 	shr ecx, 2
 
 	call drawSprite, offset sprite, VMEMADR, eax, ecx   ;Draw sprite at (0,0)
@@ -339,7 +339,7 @@ PROC drawSprite
 	ret
 ENDP drawSprite
 
-
+; replace all colors 2bh with the color on the background
 PROC applyTransparancy
 	USES eax, ebx, ecx, edx, edi, esi
 
@@ -413,40 +413,41 @@ PROC collision
 ENDP collision
 
 PROC collisionBorders
-; returns cx = 1, 2, 3, 4 of collision on respectively bottom, top, left, right, cx = 0 if no collision
-    ARG @@x:word, @@y:word, @@w:word, @@h:word RETURNS ecx
+ ;returns cx = 1, 2, 3, 4 of collision on respectively bottom, top, left, right, cx = 0 if no collision
+    ARG @@x:dword, @@y:dword, @@w:dword, @@h:dword RETURNS ecx
 	USES eax
 
 	;cx = 0 if no border hit -> initialize
-	xor cx, cx
+	xor ecx, ecx
+	xor eax, eax
 
-;check bottom limit
-	mov ax, VIRSCRHEIGHT
-	sub ax, [@@h]
-	cmp [@@y], ax
+ ;check bottom limit
+	mov eax, VIRSCRHEIGHT
+	sub eax, [@@h]
+	cmp [@@y], eax
 	jle @@checkTop
-	mov cx, 1  ;moves 1 into cx if bottom is hit
+	mov ecx, 1  ;moves 1 into cx if bottom is hit
 	jmp @@checkLeft
 
-;check top limit
+ ;check top limit
 	@@checkTop:
 	cmp [@@y], 0
 	jge @@checkLeft
-	mov cx, 2  ;moves 2 into cx if top is hit
+	mov ecx, 2  ;moves 2 into cx if top is hit
 
-;check left limit
+ ;check left limit
 	@@checkLeft:
 	cmp [@@x], 0
 	jge @@checkRight
-	mov cx, 3   ;moves 3 into cx if left is hit
+	mov ecx, 3   ;moves 3 into cx if left is hit
 
-;check right limit
+ ;check right limit
 	@@checkRight:
-	mov ax, VIRSCRWIDTH
-	sub ax, [@@w]
-	cmp [@@x], ax
+	mov eax, VIRSCRWIDTH
+	sub eax, [@@w]
+	cmp [@@x], eax
 	jle @@done
-	mov cx, 4   ;moves 4 into cx if right is hit
+	mov ecx, 4   ;moves 4 into cx if right is hit
 	jmp @@done
 
 	@@done:
@@ -457,41 +458,43 @@ ENDP collisionBorders
 
 PROC movementEnemy
     ARG @@enemy: dword
-    USES eax, ebx
-	LOCAL @@randnumx: word, @@randnumy: word
+    USES eax, ebx, ecx
+	LOCAL @@randnumx: dword, @@randnumy: dword
 
     mov ebx, [@@enemy]
 
 	;randomized movement
 	;random number for x movement
 	call rand16     ;random 16-bit number in AX
-	sub ax, 7fffh 	    ; - (2^16) / 2
-	sar ax, 13			; / 2^13
-	mov [@@randnumx], ax
+	movzx eax, ax
+	sub eax, 7fffh 	    ; - (2^16) / 2
+	sar eax, 13			; / 2^13
+	mov [@@randnumx], eax
 	
 	;random number for y movement
 	call rand16     ;random 16-bit number in AX
-	;and ax, 0fh
+	movzx eax, ax
 	sub eax, 7fffh   	;now also movement in the negative direction
 	sar eax, 13
-	mov [@@randnumy], ax
+	mov [@@randnumy], eax
 
 	
     ; change x position
-    mov ax, [ebx + enemies.x]
-    add ax, [@@randnumx]
-	add ax, [ebx + enemies.speed_x]
-    mov [ebx + enemies.x], ax
+    mov eax, [ebx + enemies.x]
+    add eax, [@@randnumx]
+	add eax, [ebx + enemies.speed_x]
+    mov [ebx + enemies.x], eax
 
     ; change y position
-    mov ax, [ebx + enemies.y]
-    add ax, [@@randnumy]	
-	add ax, [ebx + enemies.speed_y]
-    mov [ebx + enemies.y], ax
+    mov eax, [ebx + enemies.y]
+    add eax, [@@randnumy]
+	add eax, [ebx + enemies.speed_y]
+    mov [ebx + enemies.y], eax
 
 	; apply a limit to x and y to the enemy position so it stays on screen
 
     call collisionBorders, [ebx + enemies.x], [ebx + enemies.y], SPRITEWIDTH, SPRITEHEIGHT
+
 	
 	jmp [Jump_Table_Enemy + ecx*4]
 	
@@ -500,22 +503,22 @@ PROC movementEnemy
 
 	bottomHitEnemy:
 	mov [ebx + enemies.y], VIRSCRHEIGHT-SPRITEHEIGHT
-	neg [ebx + enemies.speed_y]
+	mov [ebx + enemies.speed_y], -1
 	jmp @@done
 	
 	topHitEnemy:
 	mov [ebx + enemies.y], 0
-	neg [ebx + enemies.speed_y]
+	mov [ebx + enemies.speed_y], 1
 	jmp @@done
 
 	leftHitEnemy:
 	mov [ebx + enemies.x], 0
-	neg [ebx + enemies.speed_x]
+	mov [ebx + enemies.speed_x], 1
 	jmp @@done
 
 	rightHitEnemy:
 	mov [ebx + enemies.x], VIRSCRWIDTH-SPRITEWIDTH
-	neg [ebx + enemies.speed_x]
+	mov [ebx + enemies.speed_x], -1
 	jmp @@done
 
 	@@done:
@@ -649,7 +652,7 @@ PROC detectInput
 	mov ebx, offset player
 	mov [ebx + players.dir], dl
 
-@@end:
+ @@end:
 	; for some reason this function changes the value of edx, so call this at the end of the procedure
 	call move_player, eax, ecx
 	ret
@@ -663,21 +666,21 @@ PROC move_player
     mov ebx, offset player
 
 	; calculation x position
-    mov ax, [ebx + players.speed_x]
+    mov eax, [ebx + players.speed_x]
 	imul [@@dir_x]
 	; movement x
-    mov cx, [ebx + players.x]
-	add cx, ax
-    mov [ebx + players.x], cx
+    mov ecx, [ebx + players.x]
+	add ecx, eax
+    mov [ebx + players.x], ecx
 
 
 	; calculation y position
-    mov ax, [ebx + players.speed_y]
+    mov eax, [ebx + players.speed_y]
 	imul [@@dir_y]
 	; movement y
-    mov cx, [ebx + players.y]
-	add cx, ax
-    mov [ebx + players.y], cx
+    mov ecx, [ebx + players.y]
+	add ecx, eax
+    mov [ebx + players.y], ecx
 
 	; apply a limit to x and y to the enemy position so it stays on screen
   	call collisionBorders, [ebx + players.x], [ebx + players.y], SPRITEWIDTH, SPRITEHEIGHT
@@ -699,14 +702,11 @@ PROC move_player
 	mov [ebx + players.x], 0
 	jmp @@done
 
-
 	rightHitPlayer:
 	mov [ebx + players.x], VIRSCRWIDTH-SPRITEWIDTH
 	jmp @@done
 
 	@@done:
-
-
 	ret
 
 ENDP move_player
@@ -738,20 +738,31 @@ gameloop:
 	cmp al, 01h					 ; check for escape
 	je exit
 
+	;Enemies NPC movement
+	mov esi, offset arrayEnemies
+	mov cx, 5
 
-	; NPC tick
-	call movementEnemy, offset enemy1
-
-	mov ebx, offset player
-	movzx eax, [ebx + players.dir]
+	loop_movement_enemies:
+	mov ebx, [esi]
+	call movementEnemy, ebx
+	add esi, 4
+	dec cx
+	jnz loop_movement_enemies
 	
-
 
     ; draw logic
 	call drawSprite, offset background, VMEMADR, 0, 0 
 
 	; draw enemies
-	call drawEnemy, offset enemy1
+	mov esi, offset arrayEnemies
+	mov cx, 5
+
+	loop_draw_enemies:
+	mov eax, [esi]
+	call drawEnemy, eax
+	add esi, 4
+	dec cx
+	jnz loop_draw_enemies
 	
 	; draw player
 	call drawPlayer
@@ -770,19 +781,18 @@ exit:
 	call terminateProcess
      
 STRUC enemies
-     x  dw 0  
-     y  dw 0  
-     speed_x dw 0  
-     speed_y dw 0  
+     x  dd 0  
+     y  dd 0  
+     speed_x dd 0  
+     speed_y dd 0  
      health dw 100
-     sprite dd 0
 ENDS enemies
 
 STRUC players
-	x dw 0
-	y dw 0
-    speed_x dw 0
-    speed_y dw 0
+	x dd 0
+	y dd 0
+    speed_x dd 0
+    speed_y dd 0
 	dir db 0
 	health db 100
 ENDS players
@@ -792,7 +802,13 @@ ENDS players
 ; -------------------------------------------------------------------
 DATASEG
 	player players <0, 0, 2, 2, 0, 100>
-    enemy1 enemies <0, 100, 1, 1, 100, 7>
+    enemy1 enemies <100, 70, 1, 1, 100>
+	enemy2 enemies <200, 400, 1, 1, 100>
+	enemy3 enemies <230, 350, 1, 1, 100>
+	enemy4 enemies <330, 130, 1, 1, 100>
+	enemy5 enemies <400, 260, 1, 1, 100>
+	
+	arrayEnemies dd offset enemy1, offset enemy2, offset enemy3, offset enemy4, offset enemy5
 
 	gameActive db 1
 
