@@ -705,6 +705,8 @@ PROC move_player
 	jmp @@done
 
 	@@done:
+
+
 	ret
 
 ENDP move_player
