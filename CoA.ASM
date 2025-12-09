@@ -373,43 +373,41 @@ ENDP applyTransparancy
 PROC collision
 	;axis-aligned bounding box
 	;returns AX = 1 if collision or AX = 0 if no collision
-	ARG @@x1: word, @@y1: word, @@h1: word, @@w1: word, @@x2: word, @@y2: word, @@h2: word, @@w2: word RETURNS eax
+	ARG @@x1: dword, @@y1: dword, @@h1: dword, @@w1: dword, @@x2: dword, @@y2: dword, @@h2: dword, @@w2: dword RETURNS eax
 	USES ebx, ecx
-
-	xor eax, eax
 
 	;check the collision!!
 	;if (x1 >= x2 + w2) => no collision
-	mov ax, [@@x2]
-	add ax, [@@w2]
-	cmp [@@x1], ax
+	mov ebx, [@@x2]
+	add ebx, [@@w2]
+	cmp [@@x1], ebx
 	jge @@NoHit
 
 	;if (x1 + w1 <= x2) => no collision
-	mov ax, [@@x1]
-	add ax, [@@w1]
-	cmp ax, [@@x2]
+	mov ebx, [@@x1]
+	add ebx, [@@w1]
+	cmp ebx, [@@x2]
 	jle @@NoHit
 	
 	;if (y1 >= y2 + h2) => no collision
-	mov ax, [@@y2]
-	add ax, [@@h2]
-	cmp [@@y1], ax
+	mov ebx, [@@y2]
+	add ebx, [@@h2]
+	cmp [@@y1], ebx
 	jge @@NoHit
 
 	;if (y1 + h1 <= y2) => no collision
-	mov ax, [@@y1]
-	add ax, [@@h1]
-	cmp ax, [@@y2]
+	mov ebx, [@@y1]
+	add ebx, [@@h1]
+	cmp ebx, [@@y2]
 	jle @@NoHit
 	
 	;if all fulfilled
-	mov ax, 1
+	mov eax, 1
 	ret
 
 	;if one not fulfilled
 	@@NoHit:
-	xor ax, ax
+	xor eax, eax
 	ret
 
 ENDP collision
@@ -690,24 +688,50 @@ PROC move_player
 	jmp [Jump_Table_Player + ecx*4]
 	
 	noCollisionPlayer:
-	jmp @@done
+	jmp @@border_done
 
 	bottomHitPlayer:
 	mov [ebx + players.y], VIRSCRHEIGHT-SPRITEHEIGHT
-	jmp @@done
+	jmp @@border_done
 	
 	topHitPlayer:
 	mov [ebx + players.y], 0
-	jmp @@done
+	jmp @@border_done
 
 	leftHitPlayer:
 	mov [ebx + players.x], 0
-	jmp @@done
+	jmp @@border_done
 
 	rightHitPlayer:
 	mov [ebx + players.x], VIRSCRWIDTH-SPRITEWIDTH
+	jmp @@border_done
+
+	@@border_done:
+	; Check for collisions with enemies
+	mov esi, offset arrayEnemies
+	mov ecx, 5
+	xor eax, eax
+
+	@@loop_collide_enemies:
+	; Read the pointer of enemy and check their collision
+	mov edx, [esi]
+	call collision, [ebx + players.x], [ebx + players.y], SPRITEHEIGHT, SPRITEWIDTH, [edx + enemies.x], [edx + enemies.y], SPRITEHEIGHT, SPRITEWIDTH
+
+	; Test if collision was found
+	test eax, eax
+	jnz @@collision_found
+
+	add esi, 4
+	loop @@loop_collide_enemies
 	jmp @@done
 
+	; if collision is found, pause the game and reset the player position
+	@@collision_found:
+	call wait_VBLANK, 20
+	mov [ebx + players.x], 0
+	mov [ebx + players.y], 0
+
+	
 	@@done:
 	ret
 
@@ -805,7 +829,7 @@ ENDS players
 ; -------------------------------------------------------------------
 DATASEG
 	player players <0, 0, 2, 2, 0, 100>
-    enemy1 enemies <100, 70, 1, 1, 100>
+    enemy1 enemies <500, 70, 1, 1, 100>
 	enemy2 enemies <200, 400, 1, 1, 100>
 	enemy3 enemies <230, 350, 1, 1, 100>
 	enemy4 enemies <330, 130, 1, 1, 100>
