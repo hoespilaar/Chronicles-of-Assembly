@@ -33,10 +33,6 @@ DATASIZE EQU SPRITEWIDTH*SPRITEHEIGHT/16;bytes of data in file
 ; MACROS
 ; -------------------------------------------------------------------
 
-
-
-
-
 ; -------------------------------------------------------------------
 ; CODE
 ; -------------------------------------------------------------------
@@ -229,6 +225,29 @@ PROC drawPlayer
 
 	ret
 ENDP drawPlayer
+
+PROC drawBullet
+	ARG @@bullet:dword
+	USES ebx, ecx
+
+	; read position and push on stack
+	mov ebx, [@@bullet]
+	mov ecx, [ebx + bullets.x]
+	shr ecx, 2
+	push ecx
+	mov ecx, [ebx + bullets.y]
+	shr ecx, 2
+	push ecx
+
+	; Draw bullet sprite
+	lea eax, [sprite + 8]  ;load address to store sprite data
+	call ReadFile, offset bullet_file, eax, DATASIZE
+	pop ebx	; read y location from stack
+	pop eax ; read x location from stack
+	call drawSprite, offset sprite, VMEMADR, eax, ebx
+	ret
+
+ENDP drawBullet
 
 ; Set the video mode
 ; from excercises
@@ -490,7 +509,6 @@ PROC movementEnemy
 
     call collisionBorders, [ebx + enemies.x], [ebx + enemies.y], SPRITEWIDTH, SPRITEHEIGHT
 
-	
 	jmp [Jump_Table_Enemy + ecx*4]
 	
 	noCollisionEnemy:
@@ -640,6 +658,7 @@ PROC detectInput
 	; move down
 	add ecx, 1
 	mov edx, 4
+	
 
 	@@setDir:
 	test edx, edx
@@ -751,6 +770,80 @@ PROC move_player
 
 ENDP move_player
 
+PROC move_bullet
+	;the bullet has 2 states: active (1: flying) and inactive (0: follows player)
+	ARG @@bullet: dword
+	USES eax, ebx, ecx, edx
+
+	mov ebx, [@@bullet]
+
+	;state 0
+    cmp [ebx + bullets.active], 0
+    jne @@flying
+
+    ; volg player positie
+    mov eax, [player.x]
+    mov [ebx + bullets.x], eax
+
+    mov eax, [player.y]
+    mov [ebx + bullets.y], eax	
+	
+	
+	; read if shoot key is pressed
+	movzx edx, [__keyb_rawScanCode] ;last pressed key
+	cmp dl, 32h					 	;check for spacebar
+	jne @@done
+
+	;shoot
+	mov [ebx + bullets.active], 1
+    mov al, [player.dir]
+    mov [ebx + bullets.dir], al
+    jmp @@done
+
+	; state 1
+	; move bullet in the direction of the player
+	@@flying:
+	movzx eax, [ebx + bullets.dir]
+
+	cmp eax, 1
+	jne @@up
+	mov ecx, [ebx + bullets.x]
+	add ecx, [ebx + bullets.speed_x]
+	mov [ebx + bullets.x], ecx
+	jmp @@done
+	
+	@@up:
+	cmp eax, 2
+	jne @@left
+	mov ecx, [ebx + bullets.y]
+	sub ecx, [ebx + bullets.speed_y]
+	mov [ebx + bullets.y], ecx
+	jmp @@done
+	
+	@@left:
+	cmp eax, 3
+	jne @@down
+	mov ecx, [ebx + bullets.x]
+	sub ecx, [ebx + bullets.speed_x]
+	mov [ebx + bullets.x], ecx
+	jmp @@done
+
+	@@down:
+	mov ecx, [ebx + bullets.y]
+	add ecx, [ebx + bullets.speed_y]
+	mov [ebx + bullets.y], ecx
+
+	call collisionBorders, [ebx + bullets.x], [ebx + bullets.y], SPRITEWIDTH, SPRITEHEIGHT
+	test ecx, ecx
+	jz @@done
+
+	;collision with border, reset bullet
+	mov [ebx + bullets.active], 0
+
+	@@done:
+	ret
+ENDP move_bullet
+
 init:
 	sti
 	cld
@@ -788,12 +881,10 @@ gameloop:
 	add esi, 4
 	dec cx
 	jnz loop_movement_enemies
-	
 
     ; draw logic
 	; start with background
 	call drawSprite, offset background, VMEMADR, 0, 0 
-
 	; draw enemies
 	mov esi, offset arrayEnemies
 	mov cx, 5
@@ -804,6 +895,11 @@ gameloop:
 	add esi, 4
 	dec cx
 	jnz loop_draw_enemies
+
+	; move bullet
+	call move_bullet, offset bullet
+	; draw bullet
+	call drawBullet, offset player
 	
 	; draw player
 	call drawPlayer
@@ -839,6 +935,14 @@ STRUC players
 
 ENDS players
 
+STRUC bullets
+	x dd 0
+	y dd 0
+	speed_x dd 0
+	speed_y dd 0
+	dir db 0        
+    active db 0
+ENDS bullets
 ; -------------------------------------------------------------------
 ; DATA
 ; -------------------------------------------------------------------
@@ -864,6 +968,8 @@ DATASEG
 	player_down_sprite db "Images/PDown.bin", 0
 	player_left_sprite db "Images/PLeft.bin", 0
 	player_right_sprite db "Images/PRight.bin", 0
+	
+	bullet_file db "Images/Bull.bin", 0
 
 	background_file db "Images\Backg.bin", 0
 	background DD SCRWIDTH, SCRHEIGHT
