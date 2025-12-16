@@ -163,6 +163,12 @@ PROC drawEnemy
 
 	; read position and push on stack
 	mov ebx, [@@enem]
+	
+	;check if enemy is alive
+	cmp [ebx + enemies.health], 0
+	je @@done
+
+	;continue if still alive
 	mov eax, [ebx + enemies.x]
 	shr eax, 2
 	push eax
@@ -177,6 +183,7 @@ PROC drawEnemy
 	pop eax
 	call drawSprite, offset sprite, VMEMADR, eax, ebx   ;Draw sprite at (0,0)
 
+	@@done:
 	ret
 ENDP drawEnemy
 
@@ -232,6 +239,10 @@ PROC drawBullet
 
 	; read position and push on stack
 	mov ebx, [@@bullet]
+
+	cmp [ebx + bullets.active], 0
+	je @@done
+
 	mov ecx, [ebx + bullets.x]
 	shr ecx, 2
 	push ecx
@@ -240,13 +251,14 @@ PROC drawBullet
 	push ecx
 
 	; Draw bullet sprite
-	lea eax, [sprite + 8]  ;load address to store sprite data
-	call ReadFile, offset bullet_file, eax, DATASIZE
+	lea eax, [bullet_sprite + 8]  ;load address to store sprite data
+	call ReadFile, offset bullet_file, eax, 10*10
 	pop ebx	; read y location from stack
 	pop eax ; read x location from stack
-	call drawSprite, offset sprite, VMEMADR, eax, ebx
-	ret
+	call drawSprite, offset bullet_sprite, VMEMADR, eax, ebx
 
+	@@done:
+	ret
 ENDP drawBullet
 
 ; Set the video mode
@@ -261,7 +273,7 @@ PROC setVideoMode
 	ret
 ENDP setVideoMode
 
-; from excercises
+; adapted from excercises
 PROC drawRectangle
 	ARG 	@@x0:dword, @@y0:dword, @@w:dword, @@h:dword, @@col:dword
 	USES 	eax, ecx, edx, edi ; note: MUL uses edx!
@@ -287,7 +299,7 @@ PROC drawRectangle
 	rep stosb
 
 	sub edi, edx		; reset edi to left-top corner	
-	add	edi, SCRWIDTH
+	add	edi, SCRWIDTH	; move to next line
 	pop ecx
 	loop @@rectLoop
 
@@ -476,6 +488,9 @@ PROC movementEnemy
 	LOCAL @@randnumx: dword, @@randnumy: dword
 
     mov ebx, [@@enemy]
+	
+	cmp [ebx + enemies.health], 0
+	je @@done
 
 	;randomized movement
 	;random number for x movement
@@ -628,7 +643,7 @@ PROC detectInput
 	xor edx, edx		; direction variable
 
 	@@detectD:
-    mov bl, [offset __keyb_keyboardState + 20h]
+    mov bl, [offset __keyb_keyboardState + 20h] ; test D
     test bl, bl
 	jz @@detectZ
 	; move right
@@ -636,7 +651,7 @@ PROC detectInput
 	mov edx, 1
 
 	@@detectZ:
-    mov bl, [offset __keyb_keyboardState + 11h]
+    mov bl, [offset __keyb_keyboardState + 11h] ; test Z
     test bl, bl
     jz @@detectQ  
 	; direction up
@@ -644,7 +659,7 @@ PROC detectInput
 	mov edx, 2
 
 	@@detectQ:
-    mov bl, [offset __keyb_keyboardState + 1Eh]
+    mov bl, [offset __keyb_keyboardState + 1Eh] ; test Q
     test bl, bl
     jz @@detectS 
 	; move left
@@ -652,7 +667,7 @@ PROC detectInput
 	mov edx, 3
 
 	@@detectS:
-    mov bl, [offset __keyb_keyboardState + 1Fh]
+    mov bl, [offset __keyb_keyboardState + 1Fh] ; test D
     test bl, bl
     jz @@setDir
 	; move down
@@ -777,27 +792,30 @@ PROC move_bullet
 
 	mov ebx, [@@bullet]
 
-	;state 0
     cmp [ebx + bullets.active], 0
     jne @@flying
 
-    ; volg player positie
+	; read if shoot key is pressed
+	push ebx
+	mov bl, [offset __keyb_keyboardState + 39h] ; test spacebar
+	test bl, bl
+	pop ebx
+	jz @@done
+
+	; shoot
+	; set position to player position
     mov eax, [player.x]
     mov [ebx + bullets.x], eax
 
     mov eax, [player.y]
     mov [ebx + bullets.y], eax	
-	
-	
-	; read if shoot key is pressed
-	movzx edx, [__keyb_rawScanCode] ;last pressed key
-	cmp dl, 32h					 	;check for spacebar
-	jne @@done
 
-	;shoot
-	mov [ebx + bullets.active], 1
+	; set direction
     mov al, [player.dir]
     mov [ebx + bullets.dir], al
+	; set active
+	mov [ebx + bullets.active], 1
+
     jmp @@done
 
 	; state 1
@@ -808,37 +826,60 @@ PROC move_bullet
 	cmp eax, 1
 	jne @@up
 	mov ecx, [ebx + bullets.x]
-	add ecx, [ebx + bullets.speed_x]
+	add ecx, [ebx + bullets.speed]
 	mov [ebx + bullets.x], ecx
-	jmp @@done
+	jmp @@dirDone
 	
 	@@up:
 	cmp eax, 2
 	jne @@left
 	mov ecx, [ebx + bullets.y]
-	sub ecx, [ebx + bullets.speed_y]
+	sub ecx, [ebx + bullets.speed]
 	mov [ebx + bullets.y], ecx
-	jmp @@done
+	jmp @@dirDone
 	
 	@@left:
 	cmp eax, 3
 	jne @@down
 	mov ecx, [ebx + bullets.x]
-	sub ecx, [ebx + bullets.speed_x]
+	sub ecx, [ebx + bullets.speed]
 	mov [ebx + bullets.x], ecx
-	jmp @@done
+	jmp @@dirDone
 
 	@@down:
 	mov ecx, [ebx + bullets.y]
-	add ecx, [ebx + bullets.speed_y]
+	add ecx, [ebx + bullets.speed]
 	mov [ebx + bullets.y], ecx
 
-	call collisionBorders, [ebx + bullets.x], [ebx + bullets.y], SPRITEWIDTH, SPRITEHEIGHT
+	@@dirDone:
+	call collisionBorders, [ebx + bullets.x], [ebx + bullets.y], 40, 40
 	test ecx, ecx
 	jz @@done
 
 	;collision with border, reset bullet
 	mov [ebx + bullets.active], 0
+	
+	;check collision with enemies
+	mov esi, offset arrayEnemies
+	;mov ecx, 5	
+	;xor eax, eax
+
+	@@collisionEnemiesLoop:
+	mov edx, [esi]
+	call collision, [ebx + bullets.x], [ebx + bullets.y], 10, 10, [edx + enemies.x], [edx + enemies.y], SPRITEHEIGHT, SPRITEWIDTH
+	
+	test eax, eax
+	jnz @@collisionEnemy
+	
+	add esi, 4
+	;dec ecx
+	;jnz @@collisionEnemiesLoop
+	loop @@collisionEnemiesLoop
+	
+	@@collisionEnemy:
+	call wait_VBLANK, 30	;short pause on hit
+	mov [ebx + bullets.active], 0
+	mov [edx + enemies.health], 0	;enemy dies on hit
 
 	@@done:
 	ret
@@ -881,9 +922,15 @@ gameloop:
 	add esi, 4
 	dec cx
 	jnz loop_movement_enemies
+	
+	; move bullet
+	call move_bullet, offset bullet
 
+	;---------------------
     ; draw logic
+	; start with background
 	call drawSprite, offset background, VMEMADR, 0, 0 
+
 	; draw enemies
 	mov esi, offset arrayEnemies
 	mov cx, 5
@@ -895,28 +942,23 @@ gameloop:
 	dec cx
 	jnz loop_draw_enemies
 
-	; move bullet
-	call move_bullet, offset bullet
+
 	; draw bullet
-	call drawBullet, offset player
+	call drawBullet, offset bullet
 	
 	; draw player
 	call drawPlayer
 	
+	; apply the transparancy
 	call applyTransparancy
 
 	; draw UI
 	mov ebx, offset player
-	mov ecx, [ebx + players.health]
-	call drawRectangle, 5, 5, ecx, 5, 27h
+	call drawRectangle, 5, 5, [ebx + players.health], 5, [hpBarColor]
 
 	; end of loop
     call wait_VBLANK, 1
-	cmp [gameActive], 0
-	je exit
     jmp gameloop
-
-
 exit:
 	call terminateProcess
      
@@ -941,8 +983,7 @@ ENDS players
 STRUC bullets
 	x dd 0
 	y dd 0
-	speed_x dd 0
-	speed_y dd 0
+	speed dd 0
 	dir db 0        
     active db 0
 ENDS bullets
@@ -950,16 +991,15 @@ ENDS bullets
 ; DATA
 ; -------------------------------------------------------------------
 DATASEG
-	player players <20, 50, 2, 2, 0, 100>
+	player players <20, 50, 3, 3, 0, 100>
     enemy1 enemies <500, 70, 1, 1, 100>
-	enemy2 enemies <200, 400, 1, 1, 100>
+	enemy2 enemies <200, 400, -1, 1, 100>
 	enemy3 enemies <230, 350, 1, 1, 100>
-	enemy4 enemies <330, 130, 1, 1, 100>
-	enemy5 enemies <400, 260, 1, 1, 100>
+	enemy4 enemies <330, 130, 1, -1, 100>
+	enemy5 enemies <400, 260, -1, -1, 100>
+	bullet bullets <40, 200, 6, 1, 0>
 	
 	arrayEnemies dd offset enemy1, offset enemy2, offset enemy3, offset enemy4, offset enemy5
-
-	gameActive db 1
 
 	; from SPRITEDP
 	sprite_file db "Images/Ghost.bin", 0
@@ -969,12 +1009,16 @@ DATASEG
 	sprite DD SPRITEWIDTH/4, SPRITEHEIGHT/4 ; see that first two elements are double words specifying sprite dimensions
 	DB DATASIZE DUP (0)
 
+	hpBarColor dd 27h ; written here so debugging to aid debugging
+
 	player_up_sprite db "Images/PUp.bin", 0
 	player_down_sprite db "Images/PDown.bin", 0
 	player_left_sprite db "Images/PLeft.bin", 0
 	player_right_sprite db "Images/PRight.bin", 0
 	
 	bullet_file db "Images/Bull.bin", 0
+	bullet_sprite dd 10, 10
+	db DATASIZE DUP (0)
 
 	background_file db "Images\Backg.bin", 0
 	background DD SCRWIDTH, SCRHEIGHT
