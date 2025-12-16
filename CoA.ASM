@@ -33,6 +33,7 @@ DATASIZE EQU SPRITEWIDTH*SPRITEHEIGHT/16;bytes of data in file
 ; MACROS
 ; -------------------------------------------------------------------
 
+
 ; -------------------------------------------------------------------
 ; CODE
 ; -------------------------------------------------------------------
@@ -745,6 +746,10 @@ PROC move_player
 	@@loop_collide_enemies:
 	; Read the pointer of enemy and check their collision
 	mov edx, [esi]
+
+	cmp [edx + enemies.health], 0
+	je @@skipLoop
+
 	call collision, [ebx + players.x], [ebx + players.y], SPRITEHEIGHT, SPRITEWIDTH, [edx + enemies.x], [edx + enemies.y], SPRITEHEIGHT, SPRITEWIDTH
 
 	; Test if collision was found
@@ -752,6 +757,7 @@ PROC move_player
 	jnz @@collision_found
 
 	add esi, 4
+	@@skipLoop:
 	loop @@loop_collide_enemies
 	jmp @@done
 
@@ -804,10 +810,18 @@ PROC move_bullet
 
 	; shoot
 	; set position to player position
-    mov eax, [player.x]
+	push ebx
+	mov ebx, offset player
+    mov eax, [ebx + players.x]
+	add eax, 10
+	pop ebx
     mov [ebx + bullets.x], eax
 
-    mov eax, [player.y]
+	push ebx
+	mov ebx, offset player
+    mov eax, [ebx + players.y]
+	add eax, 10
+	pop ebx
     mov [ebx + bullets.y], eax	
 
 	; set direction
@@ -854,18 +868,23 @@ PROC move_bullet
 	@@dirDone:
 	call collisionBorders, [ebx + bullets.x], [ebx + bullets.y], 40, 40
 	test ecx, ecx
-	jz @@done
+	jz @@checkEnemies
 
 	;collision with border, reset bullet
 	mov [ebx + bullets.active], 0
 	
 	;check collision with enemies
+	@@checkEnemies:
 	mov esi, offset arrayEnemies
-	;mov ecx, 5	
+	mov ecx, 5	
 	;xor eax, eax
 
 	@@collisionEnemiesLoop:
 	mov edx, [esi]
+
+	cmp [edx + enemies.health], 0
+	je @@skipLoop
+
 	call collision, [ebx + bullets.x], [ebx + bullets.y], 10, 10, [edx + enemies.x], [edx + enemies.y], SPRITEHEIGHT, SPRITEWIDTH
 	
 	test eax, eax
@@ -873,8 +892,9 @@ PROC move_bullet
 	
 	add esi, 4
 	;dec ecx
-	;jnz @@collisionEnemiesLoop
+	@@skipLoop:
 	loop @@collisionEnemiesLoop
+	jmp @@done
 	
 	@@collisionEnemy:
 	call wait_VBLANK, 30	;short pause on hit
