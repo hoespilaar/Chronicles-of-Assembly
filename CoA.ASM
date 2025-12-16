@@ -242,7 +242,7 @@ PROC setVideoMode
 	ret
 ENDP setVideoMode
 
-; from excercises
+; adapted from excercises
 PROC drawRectangle
 	ARG 	@@x0:dword, @@y0:dword, @@w:dword, @@h:dword, @@col:dword
 	USES 	eax, ecx, edx, edi ; note: MUL uses edx!
@@ -268,7 +268,7 @@ PROC drawRectangle
 	rep stosb
 
 	sub edi, edx		; reset edi to left-top corner	
-	add	edi, SCRWIDTH
+	add	edi, SCRWIDTH	; move to next line
 	pop ecx
 	loop @@rectLoop
 
@@ -791,6 +791,7 @@ gameloop:
 	
 
     ; draw logic
+	; start with background
 	call drawSprite, offset background, VMEMADR, 0, 0 
 
 	; draw enemies
@@ -807,20 +808,16 @@ gameloop:
 	; draw player
 	call drawPlayer
 	
+	; apply the transparancy
 	call applyTransparancy
 
 	; draw UI
 	mov ebx, offset player
-	mov ecx, [ebx + players.health]
-	call drawRectangle, 5, 5, ecx, 5, 27h
+	call drawRectangle, 5, 5, [ebx + players.health], 5, 27h
 
 	; end of loop
     call wait_VBLANK, 1
-	cmp [gameActive], 0
-	je exit
     jmp gameloop
-
-
 exit:
 	call terminateProcess
      
@@ -846,16 +843,14 @@ ENDS players
 ; DATA
 ; -------------------------------------------------------------------
 DATASEG
-	player players <20, 50, 2, 2, 0, 100>
+	player players <20, 50, 3, 3, 0, 100>
     enemy1 enemies <500, 70, 1, 1, 100>
-	enemy2 enemies <200, 400, 1, 1, 100>
+	enemy2 enemies <200, 400, -1, 1, 100>
 	enemy3 enemies <230, 350, 1, 1, 100>
-	enemy4 enemies <330, 130, 1, 1, 100>
-	enemy5 enemies <400, 260, 1, 1, 100>
+	enemy4 enemies <330, 130, 1, -1, 100>
+	enemy5 enemies <400, 260, -1, -1, 100>
 	
 	arrayEnemies dd offset enemy1, offset enemy2, offset enemy3, offset enemy4, offset enemy5
-
-	gameActive db 1
 
 	; from SPRITEDP
 	sprite_file db "Images/Ghost.bin", 0
