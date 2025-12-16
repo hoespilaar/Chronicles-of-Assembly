@@ -818,7 +818,7 @@ PROC move_bullet
 	mov ecx, [ebx + bullets.x]
 	add ecx, [ebx + bullets.speed]
 	mov [ebx + bullets.x], ecx
-	jmp @@done
+	jmp @@dirDone
 	
 	@@up:
 	cmp eax, 2
@@ -826,7 +826,7 @@ PROC move_bullet
 	mov ecx, [ebx + bullets.y]
 	sub ecx, [ebx + bullets.speed]
 	mov [ebx + bullets.y], ecx
-	jmp @@done
+	jmp @@dirDone
 	
 	@@left:
 	cmp eax, 3
@@ -834,21 +834,20 @@ PROC move_bullet
 	mov ecx, [ebx + bullets.x]
 	sub ecx, [ebx + bullets.speed]
 	mov [ebx + bullets.x], ecx
-	jmp @@done
+	jmp @@dirDone
 
 	@@down:
 	mov ecx, [ebx + bullets.y]
 	add ecx, [ebx + bullets.speed]
 	mov [ebx + bullets.y], ecx
 
+	@@dirDone:
 	call collisionBorders, [ebx + bullets.x], [ebx + bullets.y], 40, 40
 	test ecx, ecx
-	mov [hpBarColor], 27h
 	jz @@done
 
 	;collision with border, reset bullet
 	mov [ebx + bullets.active], 0
-	mov [hpBarColor], 35h
 
 	@@done:
 	ret
@@ -978,7 +977,7 @@ DATASEG
 	sprite DD SPRITEWIDTH/4, SPRITEHEIGHT/4 ; see that first two elements are double words specifying sprite dimensions
 	DB DATASIZE DUP (0)
 
-	hpBarColor dd 27h
+	hpBarColor dd 27h ; written here so debugging to aid debugging
 
 	player_up_sprite db "Images/PUp.bin", 0
 	player_down_sprite db "Images/PDown.bin", 0
