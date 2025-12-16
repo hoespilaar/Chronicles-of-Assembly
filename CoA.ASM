@@ -263,7 +263,7 @@ ENDP setVideoMode
 
 ; from excercises
 PROC drawRectangle
-	ARG 	@@x0:dword, @@y0:dword, @@w:dword, @@h:dword, @@col: dword
+	ARG 	@@x0:dword, @@y0:dword, @@w:dword, @@h:dword, @@col:dword
 	USES 	eax, ecx, edx, edi ; note: MUL uses edx!
 
 	; Compute the index of the rectangle's top left corner
@@ -276,26 +276,21 @@ PROC drawRectangle
 	mov edi, VMEMADR
 	add edi, eax
 	
+	mov ecx,[@@h]
+	
+	@@rectLoop:
+	push ecx
 	; Plot the top horizontal edge.
 	mov edx, [@@w]	; store width in edx for later reuse
 	mov	ecx, edx
 	mov	eax,[@@col]
 	rep stosb
-	sub edi, edx		; reset edi to left-top corner
-	
-	; plot both vertical edges
-	mov ecx,[@@h]
-	@@vertLoop:
-		mov	[edi],al		; left edge
-		mov	[edi+edx-1],al	; right edge
-		add	edi, SCRWIDTH
-		loop @@vertLoop
-	; edi should point at the bottom-left corner now
-	sub edi, SCRWIDTH
 
-	; Plot the bottom horizontal edge.
-	mov	ecx, edx
-	rep stosb
+	sub edi, edx		; reset edi to left-top corner	
+	add	edi, SCRWIDTH
+	pop ecx
+	loop @@rectLoop
+
 	ret
 ENDP drawRectangle
 
@@ -568,6 +563,7 @@ endp wait_VBLANK
 ; from excercises
 PROC terminateProcess
 	USES eax	
+	call __keyb_uninstallKeyboardHandler
 	call setVideoMode, 03h
 	mov	ax,04C00h
 	int 21h
@@ -746,9 +742,27 @@ PROC move_player
 
 	; if collision is found, pause the game and reset the player position
 	@@collision_found:
-	call wait_VBLANK, 20
-	mov [ebx + players.x], 0
-	mov [ebx + players.y], 0
+	call wait_VBLANK, 40
+	mov [ebx + players.x], 20
+	mov [ebx + players.y], 50
+
+	; remove health from the player
+	mov eax, [ebx + players.health]
+	sub eax, 20
+	cmp eax, 0
+	jle @@endgame
+
+	mov [ebx + players.health], eax
+	jmp @@done
+
+	@@endgame:
+	call setVideoMode, 03h
+
+	mov ah, 09h
+	mov edx, offset death_message
+	int 21h
+
+	call terminateProcess
 
 	
 	@@done:
@@ -891,7 +905,10 @@ gameloop:
 	
 	call applyTransparancy
 
-
+	; draw UI
+	mov ebx, offset player
+	mov ecx, [ebx + players.health]
+	call drawRectangle, 5, 5, ecx, 5, 27h
 
 	; end of loop
     call wait_VBLANK, 1
@@ -901,7 +918,6 @@ gameloop:
 
 
 exit:
-	call __keyb_uninstallKeyboardHandler
 	call terminateProcess
      
 STRUC enemies
@@ -909,7 +925,7 @@ STRUC enemies
      y  dd 0  
      speed_x dd 0  
      speed_y dd 0  
-     health dw 100
+     health dd 100
 ENDS enemies
 
 STRUC players
@@ -918,7 +934,8 @@ STRUC players
     speed_x dd 0
     speed_y dd 0
 	dir db 0
-	health dw 100
+	health dd 100
+
 ENDS players
 
 STRUC bullets
@@ -933,13 +950,12 @@ ENDS bullets
 ; DATA
 ; -------------------------------------------------------------------
 DATASEG
-	player players <0, 0, 2, 2, 0, 100>
-    enemy1 enemies <500, 70, 3, 3, 100>
-	enemy2 enemies <200, 400, 3, 3, 100>
-	enemy3 enemies <230, 350, 3, 3, 100>
-	enemy4 enemies <330, 130, 3, 3, 100>
-	enemy5 enemies <400, 260, 3, 3, 100>
-	bullet bullets <0, 0, 5, 5, 0, 0>
+	player players <20, 50, 2, 2, 0, 100>
+    enemy1 enemies <500, 70, 1, 1, 100>
+	enemy2 enemies <200, 400, 1, 1, 100>
+	enemy3 enemies <230, 350, 1, 1, 100>
+	enemy4 enemies <330, 130, 1, 1, 100>
+	enemy5 enemies <400, 260, 1, 1, 100>
 	
 	arrayEnemies dd offset enemy1, offset enemy2, offset enemy3, offset enemy4, offset enemy5
 
@@ -963,6 +979,8 @@ DATASEG
 	background_file db "Images\Backg.bin", 0
 	background DD SCRWIDTH, SCRHEIGHT
 	DB SCRWIDTH*SCRHEIGHT DUP (0)
+
+	death_message db "You died!", 10, 13, '$'
 	
 	; Jump Tables for collision handling
 	Jump_Table_Player dd noCollisionPlayer, bottomHitPlayer, topHitPlayer, leftHitPlayer, rightHitPlayer
