@@ -578,9 +578,19 @@ endp wait_VBLANK
 
 ; from excercises
 PROC terminateProcess
+	arg @@message:dword
 	USES eax	
 	call __keyb_uninstallKeyboardHandler
 	call setVideoMode, 03h
+
+	cmp [@@message], 0
+	je @@quit
+
+	mov ah, 09h
+	mov edx, [@@message]
+	int 21h
+
+	@@quit:
 	mov	ax,04C00h
 	int 21h
 	ret
@@ -631,7 +641,9 @@ PROC ReadFile
 
 	mov	ah,00h
 	int	16h
-	call terminateProcess	
+
+	call terminateProcess, 0	
+	ret
 ENDP ReadFile
 
 ; Player input
@@ -777,15 +789,8 @@ PROC move_player
 	jmp @@done
 
 	@@endgame:
-	call setVideoMode, 03h
+	call terminateProcess, offset death_message
 
-	mov ah, 09h
-	mov edx, offset death_message
-	int 21h
-
-	call terminateProcess
-
-	
 	@@done:
 	ret
 
@@ -877,22 +882,22 @@ PROC move_bullet
 	@@checkEnemies:
 	mov esi, offset arrayEnemies
 	mov ecx, 5	
-	;xor eax, eax
 
 	@@collisionEnemiesLoop:
+	; pointer to current checking enemy in edx
 	mov edx, [esi]
 
 	cmp [edx + enemies.health], 0
-	je @@skipLoop
+	jle @@skipLoop
 
 	call collision, [ebx + bullets.x], [ebx + bullets.y], 10, 10, [edx + enemies.x], [edx + enemies.y], SPRITEHEIGHT, SPRITEWIDTH
 	
 	test eax, eax
 	jnz @@collisionEnemy
 	
+	@@skipLoop:
 	add esi, 4
 	;dec ecx
-	@@skipLoop:
 	loop @@collisionEnemiesLoop
 	jmp @@done
 	
@@ -979,8 +984,9 @@ gameloop:
 	; end of loop
     call wait_VBLANK, 1
     jmp gameloop
+
 exit:
-	call terminateProcess
+	call terminateProcess, 0
      
 STRUC enemies
      x  dd 0  
@@ -1011,13 +1017,13 @@ ENDS bullets
 ; DATA
 ; -------------------------------------------------------------------
 DATASEG
-	player players <20, 50, 3, 3, 0, 100>
+	player players <VIRSCRWIDTH/2, VIRSCRHEIGHT/2, 3, 3, 0, 100>
     enemy1 enemies <500, 70, 1, 1, 100>
 	enemy2 enemies <200, 400, -1, 1, 100>
 	enemy3 enemies <230, 350, 1, 1, 100>
 	enemy4 enemies <330, 130, 1, -1, 100>
 	enemy5 enemies <400, 260, -1, -1, 100>
-	bullet bullets <40, 200, 6, 1, 0>
+	bullet bullets <0, 0, 7, 1, 0>
 	
 	arrayEnemies dd offset enemy1, offset enemy2, offset enemy3, offset enemy4, offset enemy5
 
