@@ -34,13 +34,23 @@ MAXENEMIES equ 5
 ; -------------------------------------------------------------------
 ; MACROS
 ; -------------------------------------------------------------------
+MACRO pushDiv4
+	shr ecx, 2
+	push ecx
+ENDM pushDiv4
 
+MACRO generateRandom
+	call rand16
+	movzx eax, ax
+	sub eax, 7fffh   	; - (2^16) / 2
+	sar eax, 13			; / 2^13
+ENDM generateRandom
 
 ; -------------------------------------------------------------------
 ; CODE
 ; -------------------------------------------------------------------
+
 CODESEG		
-	
 ; -------------------------------------------------------------------
 ; Debug procedures
 ; -------------------------------------------------------------------
@@ -60,7 +70,7 @@ PROC printInt
      push eax
      mov ah, 2h
      mov dl, '-'
-     int 21h
+	 int 21h
      pop eax
      neg eax
 
@@ -100,8 +110,8 @@ PROC printIntByte
      ; print minus sign and negate eax
      push eax
      mov ah, 2h
-     mov dl, '-'
-     int 21h
+     mov dl, '-' 
+	 int 21h
      pop eax
      neg eax
 
@@ -162,29 +172,27 @@ ENDP printIntList
 
 PROC drawEnemy
 	ARG @@enem:dword
-	USES eax, ebx
+	USES ecx, edx
 
 	; read position and push on stack
-	mov ebx, [@@enem]
+	mov edx, [@@enem]
 	
 	;check if enemy is alive
-	cmp [ebx + enemies.health], 0
+	cmp [edx + enemies.health], 0
 	je @@done
 
 	;continue if still alive
-	mov eax, [ebx + enemies.x]
-	shr eax, 2
-	push eax
-	mov eax, [ebx + enemies.y]
-	shr eax, 2
-	push eax
+	mov ecx, [edx + enemies.x]
+	pushDiv4
+	mov ecx, [edx + enemies.y]
+	pushDiv4
 
 	; Draw enemy sprite
-	lea eax, [sprite + 8]
-	call ReadFile, offset sprite_file, eax, DATASIZE
-	pop ebx	; read location from stack
-	pop eax
-	call drawSprite, offset sprite, VMEMADR, eax, ebx   ;Draw sprite at (0,0)
+	lea ecx, [sprite + 8]
+	call ReadFile, offset sprite_file, ecx, DATASIZE
+	pop edx	; read location from stack
+	pop ecx
+	call drawSprite, offset sprite, VMEMADR, ecx, edx   ;Draw sprite at (0,0)
 
 	@@done:
 	ret
@@ -245,11 +253,9 @@ PROC drawBullet
 	je @@done
 
 	mov ecx, [ebx + bullets.x]
-	shr ecx, 2
-	push ecx
+	pushDiv4
 	mov ecx, [ebx + bullets.y]
-	shr ecx, 2
-	push ecx
+	pushDiv4
 
 	; Draw bullet sprite
 	lea eax, [bullet_sprite + 8]  ;load address to store sprite data
@@ -513,45 +519,39 @@ ENDP collisionBorders
 
 PROC movementEnemy
     ARG @@enemy: dword
-    USES eax, ebx, ecx
+    USES eax, edx, ecx
 	LOCAL @@randnumx: dword, @@randnumy: dword
 
-    mov ebx, [@@enemy]
+    mov edx, [@@enemy]
 	
-	cmp [ebx + enemies.health], 0
+	cmp [edx + enemies.health], 0
 	je @@done
 
 	;randomized movement
 	;random number for x movement
-	call rand16     ;random 16-bit number in AX
-	movzx eax, ax
-	sub eax, 7fffh 	    ; - (2^16) / 2
-	sar eax, 13			; / 2^13
+	generateRandom
 	mov [@@randnumx], eax
 	
 	;random number for y movement
-	call rand16     ;random 16-bit number in AX
-	movzx eax, ax
-	sub eax, 7fffh   	;now also movement in the negative direction
-	sar eax, 13
+	generateRandom
 	mov [@@randnumy], eax
 
 	
     ; change x position
-    mov eax, [ebx + enemies.x]
+    mov eax, [edx + enemies.x]
     add eax, [@@randnumx]
-	add eax, [ebx + enemies.speed_x]
-    mov [ebx + enemies.x], eax
+	add eax, [edx + enemies.speed_x]
+    mov [edx + enemies.x], eax
 
     ; change y position
-    mov eax, [ebx + enemies.y]
+    mov eax, [edx + enemies.y]
     add eax, [@@randnumy]
-	add eax, [ebx + enemies.speed_y]
-    mov [ebx + enemies.y], eax
+	add eax, [edx + enemies.speed_y]
+    mov [edx + enemies.y], eax
 
 	; apply a limit to x and y to the enemy position so it stays on screen
 
-    call collisionBorders, [ebx + enemies.x], [ebx + enemies.y], SPRITEWIDTH, SPRITEHEIGHT
+    call collisionBorders, [edx + enemies.x], [edx + enemies.y], SPRITEWIDTH, SPRITEHEIGHT
 
 	jmp [Jump_Table_Enemy + ecx*4]
 	
@@ -559,23 +559,23 @@ PROC movementEnemy
 	jmp @@done
 
 	bottomHitEnemy:
-	mov [ebx + enemies.y], VIRSCRHEIGHT-SPRITEHEIGHT
-	mov [ebx + enemies.speed_y], -1
+	mov [edx + enemies.y], VIRSCRHEIGHT-SPRITEHEIGHT
+	mov [edx + enemies.speed_y], -1
 	jmp @@done
 	
 	topHitEnemy:
-	mov [ebx + enemies.y], 0
-	mov [ebx + enemies.speed_y], 1
+	mov [edx + enemies.y], 0
+	mov [edx + enemies.speed_y], 1
 	jmp @@done
 
 	leftHitEnemy:
-	mov [ebx + enemies.x], 0
-	mov [ebx + enemies.speed_x], 1
+	mov [edx + enemies.x], 0
+	mov [edx + enemies.speed_x], 1
 	jmp @@done
 
 	rightHitEnemy:
-	mov [ebx + enemies.x], VIRSCRWIDTH-SPRITEWIDTH
-	mov [ebx + enemies.speed_x], -1
+	mov [edx + enemies.x], VIRSCRWIDTH-SPRITEWIDTH
+	mov [edx + enemies.speed_x], -1
 	jmp @@done
 
 	@@done:
@@ -614,8 +614,8 @@ PROC terminateProcess
 	je @@quit
 
 	mov ah, 09h
-	mov edx, [@@message]
 	int 21h
+	mov edx, [@@message]
 
 	@@quit:
 	mov	ax,04C00h
@@ -650,7 +650,7 @@ PROC ReadFile
 	; close file
 	mov ah, 3Eh
 	int 21h
-	
+
 	mov  edx, offset closeErrorMsg
 	jc @@print_error
 	
@@ -915,7 +915,7 @@ PROC move_bullet
 	mov edx, [esi]
 
 	cmp [edx + enemies.health], 0
-	jle @@skipLoop
+	je @@skipLoop
 
 	call collision, [ebx + bullets.x], [ebx + bullets.y], 40, 40, [edx + enemies.x], [edx + enemies.y], SPRITEHEIGHT, SPRITEWIDTH
 	
