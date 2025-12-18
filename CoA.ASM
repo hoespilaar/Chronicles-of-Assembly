@@ -356,7 +356,7 @@ PROC changeBackgroundPallet
 	shr eax, 8		; shift numbers right
 	loop @@fillColors
 	pop ecx
-	
+
 	loop @@loopColor
 
 	ret
@@ -872,35 +872,31 @@ PROC move_bullet
 	; move bullet in the direction of the player
 	@@flying:
 	movzx eax, [ebx + bullets.dir]
+	mov edx, [ebx + bullets.speed]
 
-	; REWRITE WITH JUMP TABLE
+	jmp [Jump_Table_Bullet + 4*eax - 4]
 
-	cmp eax, 1
-	jne @@up
+	bullet_right:
 	mov ecx, [ebx + bullets.x]
-	add ecx, [ebx + bullets.speed]
+	add ecx, edx
 	mov [ebx + bullets.x], ecx
 	jmp @@dirDone
 	
-	@@up:
-	cmp eax, 2
-	jne @@left
+	bullet_up:
 	mov ecx, [ebx + bullets.y]
-	sub ecx, [ebx + bullets.speed]
+	sub ecx, edx
 	mov [ebx + bullets.y], ecx
 	jmp @@dirDone
 	
-	@@left:
-	cmp eax, 3
-	jne @@down
+	bullet_left:
 	mov ecx, [ebx + bullets.x]
-	sub ecx, [ebx + bullets.speed]
+	sub ecx, edx
 	mov [ebx + bullets.x], ecx
 	jmp @@dirDone
 
-	@@down:
+	bullet_down:
 	mov ecx, [ebx + bullets.y]
-	add ecx, [ebx + bullets.speed]
+	add ecx, edx
 	mov [ebx + bullets.y], ecx
 
 	@@dirDone:
@@ -923,7 +919,7 @@ PROC move_bullet
 	cmp [edx + enemies.health], 0
 	jle @@skipLoop
 
-	call collision, [ebx + bullets.x], [ebx + bullets.y], 10, 10, [edx + enemies.x], [edx + enemies.y], SPRITEHEIGHT, SPRITEWIDTH
+	call collision, [ebx + bullets.x], [ebx + bullets.y], 40, 40, [edx + enemies.x], [edx + enemies.y], SPRITEHEIGHT, SPRITEWIDTH
 	
 	test eax, eax
 	jnz @@collisionEnemy
@@ -1141,6 +1137,7 @@ DATASEG
 	; Jump Tables for collision handling
 	Jump_Table_Player dd noCollisionPlayer, bottomHitPlayer, topHitPlayer, leftHitPlayer, rightHitPlayer
 	Jump_Table_Enemy dd noCollisionEnemy, bottomHitEnemy, topHitEnemy, leftHitEnemy, rightHitEnemy
+	Jump_Table_Bullet dd bullet_right, bullet_up, bullet_left, bullet_down
 ; -------------------------------------------------------------------
 ; STACK
 ; -------------------------------------------------------------------
