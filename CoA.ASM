@@ -199,28 +199,25 @@ PROC drawPlayer
 	; read the direction of the player
 	mov ebx, offset player
 	movzx eax, [ebx + players.dir]
+
+	jmp [Jump_Table_dplayer + 4*eax - 4]
 	
-	cmp eax, 1
-	jne @@up
+	dplayer_right:
 	pop eax
 	call ReadFile, offset player_right_sprite, eax, DATASIZE
 	jmp @@draw
 
- @@up:
-	cmp eax, 2
-	jne @@left
+ 	dplayer_up:
 	pop eax
 	call ReadFile, offset player_up_sprite, eax, DATASIZE
 	jmp @@draw
 
- @@left:
-	cmp eax, 3
-	jne @@down
+ 	dplayer_left:
 	pop eax
 	call ReadFile, offset player_left_sprite, eax, DATASIZE
 	jmp @@draw
 
- @@down:
+ 	dplayer_down:
 	pop eax
 	call ReadFile, offset player_down_sprite, eax, DATASIZE
 
@@ -233,6 +230,7 @@ PROC drawPlayer
 
 	call drawSprite, offset sprite, VMEMADR, eax, ecx   ;Draw sprite at (0,0)
 
+	@@done:
 	ret
 ENDP drawPlayer
 
@@ -433,7 +431,7 @@ PROC collision
 	ARG @@x1: dword, @@y1: dword, @@h1: dword, @@w1: dword, @@x2: dword, @@y2: dword, @@h2: dword, @@w2: dword RETURNS eax
 	USES ebx, ecx
 
-	;check the collision!!
+	;check the collision
 	;if (x1 >= x2 + w2) => no collision
 	mov ebx, [@@x2]
 	add ebx, [@@w2]
@@ -484,7 +482,7 @@ PROC collisionBorders
 	cmp [@@y], eax
 	jle @@checkTop
 	mov ecx, 1  ;moves 1 into cx if bottom is hit
-	jmp @@checkLeft
+	jmp @@checkLeft	; jump to left-right checking
 
  ;check top limit
 	@@checkTop:
@@ -1005,7 +1003,6 @@ init:
 	call ReadFile, offset background_file, eax, SCRHEIGHT*SCRWIDTH
 
 	call next_level
-	call changeBackgroundPallet
 
 gameloop:
     ; Player input and movement
@@ -1018,34 +1015,31 @@ gameloop:
 
 	;Enemies NPC movement
 	mov esi, offset arrayEnemies
-	mov cx, 5
+	mov ecx, MAXENEMIES
 
 	loop_movement_enemies:
 	mov ebx, [esi]
 	call movementEnemy, ebx
 	add esi, 4
-	dec cx
-	jnz loop_movement_enemies
+	loop loop_movement_enemies
 	
 	; move bullet
 	call move_bullet, offset bullet
 
-	;---------------------
+	; ---------------------
     ; draw logic
 	; start with background
 	call drawSprite, offset background, VMEMADR, 0, 0 
 
 	; draw enemies
 	mov esi, offset arrayEnemies
-	mov cx, 5
+	mov cx, MAXENEMIES
 
 	loop_draw_enemies:
 	mov eax, [esi]
 	call drawEnemy, eax
 	add esi, 4
-	dec cx
-	jnz loop_draw_enemies
-
+	loop loop_draw_enemies
 
 	; draw bullet
 	call drawBullet, offset bullet
@@ -1080,9 +1074,8 @@ STRUC players
 	y dd 0
     speed_x dd 0
     speed_y dd 0
-	dir db 0
+	dir db 1
 	health dd 100
-
 ENDS players
 
 STRUC bullets
@@ -1096,8 +1089,8 @@ ENDS bullets
 ; DATA
 ; -------------------------------------------------------------------
 DATASEG
-	player players <VIRSCRWIDTH/2, VIRSCRHEIGHT/2, 3, 3, 0, 100>
-    enemy1 enemies <500, 70, 1, 1, 0>
+	player players <VIRSCRWIDTH/2, VIRSCRHEIGHT/2, 3, 3, 1, 100>
+    enemy1 enemies <500, 70, 1, 4, 0>
 	enemy2 enemies <200, 400, -1, 1, 0>
 	enemy3 enemies <230, 350, 1, 1, 0>
 	enemy4 enemies <330, 130, 1, -1, 0>
@@ -1106,12 +1099,11 @@ DATASEG
 	
 	arrayEnemies dd offset enemy1, offset enemy2, offset enemy3, offset enemy4, offset enemy5
 
-
 	; from SPRITEDP
-	sprite_file db "Images/Ghost.bin", 0
 	openErrorMsg db "could not open file", 13, 10, '$'
 	readErrorMsg db "could not read data", 13, 10, '$'
 	closeErrorMsg db "error during file closing", 13, 10, '$'
+	sprite_file db "Images/Ghost.bin", 0
 	sprite DD SPRITEWIDTH/4, SPRITEHEIGHT/4 ; see that first two elements are double words specifying sprite dimensions
 	DB DATASIZE DUP (0)
 
@@ -1124,7 +1116,7 @@ DATASEG
 	
 	bullet_file db "Images/Bull.bin", 0
 	bullet_sprite dd 10, 10
-	db DATASIZE DUP (0)
+	db 10*10 DUP (0)
 
 	background_file db "Images\Backg.bin", 0
 	background DD SCRWIDTH, SCRHEIGHT
@@ -1138,6 +1130,7 @@ DATASEG
 	Jump_Table_Player dd noCollisionPlayer, bottomHitPlayer, topHitPlayer, leftHitPlayer, rightHitPlayer
 	Jump_Table_Enemy dd noCollisionEnemy, bottomHitEnemy, topHitEnemy, leftHitEnemy, rightHitEnemy
 	Jump_Table_Bullet dd bullet_right, bullet_up, bullet_left, bullet_down
+	Jump_Table_dplayer dd dplayer_right, dplayer_up, dplayer_left, dplayer_down
 ; -------------------------------------------------------------------
 ; STACK
 ; -------------------------------------------------------------------
