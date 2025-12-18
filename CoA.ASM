@@ -28,6 +28,8 @@ SPRITEWIDTH EQU 20*4	; virtual sprite size
 SPRITEHEIGHT EQU 20*4		; virtual sprite size
 DATASIZE EQU SPRITEWIDTH*SPRITEHEIGHT/16;bytes of data in file
 
+MAXENEMIES equ 5
+
 
 ; -------------------------------------------------------------------
 ; MACROS
@@ -554,7 +556,6 @@ PROC movementEnemy
 	ret
 
 ENDP movementEnemy
-; -------------------------------------------------------------------
 
 ; wait for @@framecount frames, from dancer example
 proc wait_VBLANK
@@ -701,7 +702,6 @@ PROC detectInput
 	ret
 ENDP detectInput
 
-
 PROC move_player
 	ARG @@dir_x:dword, @@dir_y:dword
 	USES eax, ebx, ecx
@@ -776,8 +776,8 @@ PROC move_player
 	; if collision is found, pause the game and reset the player position
 	@@collision_found:
 	call wait_VBLANK, 40
-	mov [ebx + players.x], 20
-	mov [ebx + players.y], 50
+	mov [ebx + players.x], VIRSCRWIDTH/2-20
+	mov [ebx + players.y], VIRSCRHEIGHT/2-20
 
 	; remove health from the player
 	mov eax, [ebx + players.health]
@@ -789,6 +789,9 @@ PROC move_player
 	jmp @@done
 
 	@@endgame:
+	mov al, [level]
+	add al, '0'	; add the character code for 0 to level so the final message displays correctly
+	mov [level], al
 	call terminateProcess, offset death_message
 
 	@@done:
@@ -799,7 +802,7 @@ ENDP move_player
 PROC move_bullet
 	;the bullet has 2 states: active (1: flying) and inactive (0: follows player)
 	ARG @@bullet: dword
-	USES eax, ebx, ecx, edx
+	USES eax, ebx, ecx, edx, esi, edi
 
 	mov ebx, [@@bullet]
 
@@ -841,6 +844,8 @@ PROC move_bullet
 	; move bullet in the direction of the player
 	@@flying:
 	movzx eax, [ebx + bullets.dir]
+
+	; REWRITE WITH JUMP TABLE
 
 	cmp eax, 1
 	jne @@up
@@ -906,9 +911,56 @@ PROC move_bullet
 	mov [ebx + bullets.active], 0
 	mov [edx + enemies.health], 0	;enemy dies on hit
 
+	; check if all enemies are dead
+	mov esi, offset arrayEnemies
+	mov ecx, MAXENEMIES
+
+	@@deathTest:
+	; pointer to current checking enemy in edx
+	mov edx, [esi]
+	
+	cmp [edx + enemies.health], 0
+	jg @@done
+	add esi, 4
+	loop @@deathTest
+
+	call fillBackground, 00h
+	call wait_VBLANK, 1
+	; Wait one frame so the screen can update
+	call wait_VBLANK, 39
+	call next_level
+
 	@@done:
 	ret
 ENDP move_bullet
+
+PROC next_level
+	uses ebx, ecx, edx
+
+	inc [level]
+
+	xor ecx, ecx
+	mov cl, [level]
+	cmp ecx, MAXENEMIES
+	jl @@spawnEnemies
+
+	mov ecx, MAXENEMIES 
+
+	@@spawnEnemies:
+	mov edi, offset arrayEnemies
+
+	@@spawnLoop:
+	mov edx, [edi]
+	mov [edx + enemies.health], 100
+	add edi, 4
+	loop @@spawnLoop
+
+	mov ebx, offset player
+	mov [ebx + players.x], VIRSCRWIDTH/2-20
+	mov [ebx + players.y], VIRSCRHEIGHT/2-20
+
+	ret
+endp next_level
 
 init:
 	sti
@@ -927,6 +979,8 @@ init:
 	; Read the background file
 	lea eax, [background + 8]
 	call ReadFile, offset background_file, eax, SCRHEIGHT*SCRWIDTH
+
+	call next_level
 
 gameloop:
     ; Player input and movement
@@ -1018,14 +1072,15 @@ ENDS bullets
 ; -------------------------------------------------------------------
 DATASEG
 	player players <VIRSCRWIDTH/2, VIRSCRHEIGHT/2, 3, 3, 0, 100>
-    enemy1 enemies <500, 70, 1, 1, 100>
-	enemy2 enemies <200, 400, -1, 1, 100>
-	enemy3 enemies <230, 350, 1, 1, 100>
-	enemy4 enemies <330, 130, 1, -1, 100>
-	enemy5 enemies <400, 260, -1, -1, 100>
+    enemy1 enemies <500, 70, 1, 1, 0>
+	enemy2 enemies <200, 400, -1, 1, 0>
+	enemy3 enemies <230, 350, 1, 1, 0>
+	enemy4 enemies <330, 130, 1, -1, 0>
+	enemy5 enemies <400, 260, -1, -1, 0>
 	bullet bullets <0, 0, 7, 1, 0>
 	
 	arrayEnemies dd offset enemy1, offset enemy2, offset enemy3, offset enemy4, offset enemy5
+
 
 	; from SPRITEDP
 	sprite_file db "Images/Ghost.bin", 0
@@ -1050,7 +1105,9 @@ DATASEG
 	background DD SCRWIDTH, SCRHEIGHT
 	DB SCRWIDTH*SCRHEIGHT DUP (0)
 
-	death_message db "You died!", 10, 13, '$'
+	death_message db "You died, you got to level "
+	level db 0	; define level between the death message so we can just display it with the level in the text
+	db "!", 10, 13, '$'
 	
 	; Jump Tables for collision handling
 	Jump_Table_Player dd noCollisionPlayer, bottomHitPlayer, topHitPlayer, leftHitPlayer, rightHitPlayer
