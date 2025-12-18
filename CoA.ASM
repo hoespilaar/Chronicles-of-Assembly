@@ -334,6 +334,34 @@ PROC fillBackground
 	ret
 ENDP fillBackground
 
+PROC changeBackgroundPallet
+	uses eax, ecx, edx
+
+	; background uses pallet values 11h, 12h, and 13h
+	; each 3 color values -> 9 
+	mov ecx, 3
+
+	mov dx, 03C8h 	; DAC write port
+	mov al, 11h		; pallet index of first color to change (11h * 03h)
+	out dx, al
+	inc dx
+	
+	@@loopColor:
+	call rand		; 32 bit number in ax, get R, G, B values from this per color
+	push ecx
+	mov ecx, 3		
+
+	@@fillColors:
+	out dx, al		; bottom 8 bits from eax
+	shr eax, 8		; shift numbers right
+	loop @@fillColors
+	pop ecx
+	
+	loop @@loopColor
+
+	ret
+endp changeBackgroundPallet
+
 ; from SPRITEDP
 PROC drawSprite
 	ARG @@spritePtr :dword, \
@@ -936,7 +964,7 @@ ENDP move_bullet
 
 PROC next_level
 	uses ebx, ecx, edx
-
+	call changeBackgroundPallet
 	inc [level]
 
 	xor ecx, ecx
@@ -981,6 +1009,7 @@ init:
 	call ReadFile, offset background_file, eax, SCRHEIGHT*SCRWIDTH
 
 	call next_level
+	call changeBackgroundPallet
 
 gameloop:
     ; Player input and movement
@@ -1090,7 +1119,7 @@ DATASEG
 	sprite DD SPRITEWIDTH/4, SPRITEHEIGHT/4 ; see that first two elements are double words specifying sprite dimensions
 	DB DATASIZE DUP (0)
 
-	hpBarColor dd 27h ; written here so debugging to aid debugging
+	hpBarColor dd 27h ; written here to aid debugging
 
 	player_up_sprite db "Images/PUp.bin", 0
 	player_down_sprite db "Images/PDown.bin", 0
