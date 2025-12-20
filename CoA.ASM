@@ -794,8 +794,8 @@ PROC move_player
 	test eax, eax
 	jnz @@collision_found
 
-	add esi, 4
 	@@skipLoop:
+	add esi, 4
 	loop @@loop_collide_enemies
 	jmp @@done
 
@@ -1092,9 +1092,9 @@ DATASEG
 	player players <VIRSCRWIDTH/2, VIRSCRHEIGHT/2, 3, 3, 1, 100>
     enemy1 enemies <500, 70, 1, 4, 0>
 	enemy2 enemies <200, 400, -1, 1, 0>
-	enemy3 enemies <230, 350, 1, 1, 0>
-	enemy4 enemies <330, 130, 1, -1, 0>
-	enemy5 enemies <400, 260, -1, -1, 0>
+	enemy3 enemies <230, 350, 2, 2, 0>
+	enemy4 enemies <330, 130, 3, -3, 0>
+	enemy5 enemies <400, 260, -5, -5, 0>
 	bullet bullets <0, 0, 7, 1, 0>
 	
 	arrayEnemies dd offset enemy1, offset enemy2, offset enemy3, offset enemy4, offset enemy5
