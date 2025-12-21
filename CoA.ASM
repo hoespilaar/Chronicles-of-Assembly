@@ -46,10 +46,18 @@ MACRO generateRandom
 	sar eax, 13			; / 2^13
 ENDM generateRandom
 
+MACRO exor
+	xor ecx, ecx
+	xor eax, eax
+ENDM exor
+
+MACRO test_collision
+	test eax, eax
+	jnz @@collision_found
+ENDM test_collision
 ; -------------------------------------------------------------------
 ; CODE
 ; -------------------------------------------------------------------
-
 CODESEG		
 ; -------------------------------------------------------------------
 ; Debug procedures
@@ -479,8 +487,7 @@ PROC collisionBorders
 	USES eax
 
 	;cx = 0 if no border hit -> initialize
-	xor ecx, ecx
-	xor eax, eax
+	exor
 
  ;check bottom limit
 	mov eax, VIRSCRHEIGHT
@@ -677,8 +684,8 @@ ENDP ReadFile
 PROC detectInput
 	USES ebx, eax, ecx, edx
 
-	xor eax, eax ; x-directions are in here
-	xor ecx, ecx ; y-directions are in here
+	;reset the movement (x, y) variables
+	exor
 
 	xor edx, edx		; direction variable
 
@@ -791,8 +798,7 @@ PROC move_player
 	call collision, [ebx + players.x], [ebx + players.y], SPRITEHEIGHT, SPRITEWIDTH, [edx + enemies.x], [edx + enemies.y], SPRITEHEIGHT, SPRITEWIDTH
 
 	; Test if collision was found
-	test eax, eax
-	jnz @@collision_found
+	test_collision
 
 	@@skipLoop:
 	add esi, 4
@@ -919,8 +925,8 @@ PROC move_bullet
 
 	call collision, [ebx + bullets.x], [ebx + bullets.y], 40, 40, [edx + enemies.x], [edx + enemies.y], SPRITEHEIGHT, SPRITEWIDTH
 	
-	test eax, eax
-	jnz @@collisionEnemy
+	; Test if collision was found
+	test_collision
 	
 	@@skipLoop:
 	add esi, 4
@@ -928,7 +934,7 @@ PROC move_bullet
 	loop @@collisionEnemiesLoop
 	jmp @@done
 	
-	@@collisionEnemy:
+	@@collision_found:
 	call wait_VBLANK, 30	;short pause on hit
 	mov [ebx + bullets.active], 0
 	mov [edx + enemies.health], 0	;enemy dies on hit
@@ -943,6 +949,7 @@ PROC move_bullet
 	
 	cmp [edx + enemies.health], 0
 	jg @@done
+
 	add esi, 4
 	loop @@deathTest
 
