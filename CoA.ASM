@@ -613,16 +613,17 @@ endp wait_VBLANK
 ; from excercises
 PROC terminateProcess
 	arg @@message:dword
-	USES eax	
+	USES eax, edx
 	call __keyb_uninstallKeyboardHandler
 	call setVideoMode, 03h
 
 	cmp [@@message], 0
 	je @@quit
 
+
 	mov ah, 09h
-	int 21h
 	mov edx, [@@message]
+	int 21h
 
 	@@quit:
 	mov	ax,04C00h
@@ -824,6 +825,7 @@ PROC move_player
 	mov al, [level]
 	add al, '0'	; add the character code for 0 to level so the final message displays correctly
 	mov [level], al
+	xor edx, edx
 	call terminateProcess, offset death_message
 
 	@@done:
